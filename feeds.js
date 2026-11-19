@@ -58,7 +58,6 @@ export function findRivalry(nameA, nameB) {
 // --- Team sports -------------------------------------------------------------
 // follows: [{ group, id, abbr, name }]
 export function parseLeague(feed, json, today, follows) {
-  const mine = follows.filter((f) => f.group === feed.group);
   const items = [];
   for (const ev of json?.events ?? []) {
     const comp = ev.competitions?.[0];
@@ -67,18 +66,10 @@ export function parseLeague(feed, json, today, follows) {
     const start = new Date(comp.date ?? ev.date);
     if (isNaN(start) || !sameLocalDay(start, today)) continue;
 
-    const ours = teams.find((c) => mine.some((f) => teamMatches(c.team, f)));
     const [home, away] = [teams.find((c) => c.homeAway === 'home') ?? teams[0], teams.find((c) => c.homeAway === 'away') ?? teams[1]];
     const rivalry = findRivalry(home.team?.displayName, away.team?.displayName);
     const postseason = ev.season?.type === 3 && feed.group !== 'soccer';
 
-    let title;
-    if (ours) {
-      const other = teams.find((c) => c !== ours);
-      title = `${ours.team?.shortDisplayName ?? ours.team?.displayName} ${ours.homeAway === 'home' ? 'vs' : 'at'} ${other?.team?.shortDisplayName ?? other?.team?.displayName ?? 'TBD'}`;
-    } else {
-      title = `${away.team?.shortDisplayName ?? away.team?.displayName} at ${home.team?.shortDisplayName ?? home.team?.displayName}`;
-    }
     const hasScore = teams.every((c) => c.score != null && c.score !== '') && (comp.status?.type?.state ?? 'pre') !== 'pre';
     const record = (c) => {
       const r = (c.records ?? []).find((x) => x.type === 'total' || x.name === 'overall' || x.name === 'All Splits') ?? c.records?.[0];
@@ -96,12 +87,14 @@ export function parseLeague(feed, json, today, follows) {
       topMatchup = shares.every((x) => x != null && x >= 0.6);
     }
     const national = (comp.broadcasts ?? []).some((b) => (b.market ?? '').toLowerCase() === 'national');
+    const slim = (c) => ({ id: String(c.team?.id ?? ''), abbreviation: c.team?.abbreviation ?? '', short: c.team?.shortDisplayName ?? c.team?.displayName ?? 'TBD' });
     items.push({
       id: `${feed.group}:${ev.id}`,
-      section: ours ? 'mine' : rivalry || postseason ? 'big' : 'rest',
+      group: feed.group,
+      home: slim(home),
+      away: slim(away),
       sport: feed.sport,
       league: feed.league,
-      title,
       subtitle: feed.league,
       tag: rivalry?.name ?? (postseason ? 'Playoffs' : topMatchup ? (feed.group.startsWith('ncaa') ? 'Top 25 matchup' : 'Top matchup') : ''),
       start,
@@ -114,7 +107,19 @@ export function parseLeague(feed, json, today, follows) {
       watch: broadcastsFor(comp, feed.league),
     });
   }
-  return items;
+  return items.map((i) => classifyTeamGame(i, follows));
+}
+
+// Decides if a team game is his (and words the title from his side), a big
+// game, or the rest. Separate from parsing so saved games can be re-sorted
+// when he changes the teams he follows.
+export function classifyTeamGame(item, follows) {
+  const mine = follows.filter((f) => f.group === item.group);
+  const ours = [item.home, item.away].find((t) => mine.some((f) => teamMatches(t, f)));
+  const title = ours
+    ? `${ours.short} ${ours === item.home ? 'vs' : 'at'} ${(ours === item.home ? item.away : item.home).short}`
+    : `${item.away.short} at ${item.home.short}`;
+  return { ...item, title, section: ours ? 'mine' : item.rivalry || item.postseason ? 'big' : 'rest' };
 }
 
 // --- Whole sports ------------------------------------------------------------
@@ -247,18 +252,10 @@ export async function loadToday({ today = new Date(), follows, leagues = DEFAULT
   results.forEach((r, i) => (r.status === 'fulfilled' ? all.push(...r.value) : failed.push(jobs[i][0])));
   all.push(...cyclocrossToday(today));
 
-  // Sort each item into Highlights or not, by what he follows.
-  const followed = new Set(leagues);
-  for (const item of all) {
-    const on = followed.has(followKey(item));
-    if (item.section === 'rest' && on) item.section = 'league';
-    else if (item.section === 'other' && !on) item.section = 'rest';
-  }
-
-  const seen = new Set();
-  const items = sortItems(all.filter((i) => (seen.has(i.id) ? false : seen.add(i.id))).map(rank));
+  const items = organize(all, { follows, leagues });
 
   // Followed whole sports that loaded fine but have nothing on today.
+  const followed = new Set(leagues);
   const quiet = [];
   for (const name of uniq(Object.values(QUIET_NAME))) {
     const keys = Object.keys(QUIET_NAME).filter((k) => QUIET_NAME[k] === name && followed.has(k));
@@ -266,6 +263,29 @@ export async function loadToday({ today = new Date(), follows, leagues = DEFAULT
     if (!items.some((i) => keys.includes(followKey(i)))) quiet.push(name);
   }
 
+  return { ...split(items), failed: uniq(failed), quiet };
+}
+
+// Sorts raw items into his teams / big games / followed leagues and sports /
+// the rest, ranks them, removes duplicates and orders them by time.
+// Whole-sport items must arrive with section 'other' (as parsed).
+export function organize(raw, { follows, leagues = DEFAULT_LEAGUES }) {
+  const followed = new Set(leagues);
+  const seen = new Set();
+  const out = [];
+  for (const r of raw) {
+    if (seen.has(r.id)) continue;
+    seen.add(r.id);
+    const item = r.home ? classifyTeamGame(r, follows) : { ...r };
+    const on = followed.has(followKey(item));
+    if (item.section === 'rest' && on) item.section = 'league';
+    else if (item.section === 'other' && !on) item.section = 'rest';
+    out.push(rank(item));
+  }
+  return sortItems(out);
+}
+
+export function split(items) {
   return {
     all: items,
     ranked: [...items].sort((a, b) => (b.importance - a.importance) || ((a.start?.getTime() ?? 0) - (b.start?.getTime() ?? 0))),
@@ -274,9 +294,22 @@ export async function loadToday({ today = new Date(), follows, leagues = DEFAULT
     big: items.filter((i) => i.section === 'big'),
     league: items.filter((i) => i.section === 'league'),
     other: items.filter((i) => i.section === 'other'),
-    failed: uniq(failed),
-    quiet,
   };
+}
+
+// --- Upcoming (next 4 weeks) -------------------------------------------------
+// upcoming.json is built daily by tools/upcoming.mjs: { updated, days: { 'YYYY-MM-DD': [items] } }.
+// Returns [{ day: Date, iso, ...split(items) }] for each day, sorted by date.
+export async function loadUpcoming({ follows, leagues = DEFAULT_LEAGUES, fetchFn = fetch, url = './upcoming.json', from = new Date() }) {
+  const json = await getJson(fetchFn, url);
+  const todayIso = isoDay(from);
+  return Object.keys(json.days ?? {}).filter((iso) => iso > todayIso).sort().map((iso) => {
+    const [y, m, d] = iso.split('-').map(Number);
+    const day = new Date(y, m - 1, d, 12);
+    const raw = json.days[iso].map((i) => ({ ...i, start: i.start ? new Date(i.start) : null }));
+    raw.push(...cyclocrossToday(day));
+    return { day, iso, ...split(organize(raw, { follows, leagues })) };
+  });
 }
 
 // Teams in one league, for the "add a team" picker. Read from teams.json,

@@ -16,9 +16,12 @@ jobs:
         with: { node-version: 22 }
       - run: npm install --no-audit --no-fund
       - run: npm test
+        env: { TZ: America/New_York }
       - run: mkdir site && cp -r index.html app.js feeds.js sources.js cyclocross.js ranking.js push-config.js styles.css sw.js manifest.json icons site/
       - run: node tools/cycling.mjs site/cycling.json
       - run: node tools/teams.mjs site/teams.json
+      - run: node tools/upcoming.mjs site/upcoming.json
+        env: { TZ: America/New_York }
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with: { path: site }

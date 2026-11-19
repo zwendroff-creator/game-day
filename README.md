@@ -34,3 +34,6 @@ A home-screen web app that shows Victor what's on today: his teams first, then b
 
 ## Following sports and leagues
 In ⚙︎ › "Sports & leagues I follow", Victor can follow whole sports (F1, tennis, UFC, golf, cycling, cyclocross) or whole leagues (NFL, NHL, Premier League, college, and others). Followed ones show in Highlights and the morning alert. All games always shows everything.
+
+## Upcoming
+The publish job saves the next 4 weeks of games as `upcoming.json` (`tools/upcoming.mjs`, about 1,200 small ESPN requests, refreshed daily). The Upcoming tab shows them on a calendar. Dots mark days with his teams (blue), big games (orange) or sports and leagues he follows (grey). Tap a day for its highlights, or for all of that day's games.

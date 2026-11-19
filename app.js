@@ -1,4 +1,4 @@
-import { loadToday, loadTeams } from './feeds.js';
+import { loadToday, loadTeams, loadUpcoming } from './feeds.js';
 import { DEFAULT_TEAMS, PICKER_LEAGUES, LEAGUES, FOLLOWABLE_SPORTS, DEFAULT_LEAGUES } from './sources.js';
 import { VAPID_PUBLIC_KEY } from './push-config.js';
 
@@ -68,7 +68,7 @@ function section(title, items, empty) {
 // --- Two views: every game today, or just the highlights ----------------------
 const VIEW_KEY = 'view.v1';
 let view = 'all';
-try { if (localStorage.getItem(VIEW_KEY) === 'highlights') view = 'highlights'; } catch {}
+try { const v = localStorage.getItem(VIEW_KEY); if (v === 'highlights' || v === 'upcoming') view = v; } catch {}
 let lastData = null;
 
 // All games: Top games ranked by importance (see ranking.js), then the rest by time.
@@ -94,8 +94,81 @@ function highlightsView({ mine, big, league, other }) {
     (!big.length && !league.length && !other.length ? '<p class="empty">Nothing else on today from what you follow.</p>' : '');
 }
 
+// --- Upcoming: a 4-week calendar; tap a day to see its games ------------------
+let upcoming = null;        // [{ day, iso, all, mine, big, league, other, ranked }]
+let upcomingLoadedAt = 0;
+let upcomingError = false;
+let selectedIso = null;
+let showAllDay = false;
+const monthFmt = new Intl.DateTimeFormat(undefined, { month: 'short' });
+const longDayFmt = new Intl.DateTimeFormat(undefined, { weekday: 'long', month: 'long', day: 'numeric' });
+
+async function ensureUpcoming(force = false) {
+  if (!force && upcoming && Date.now() - upcomingLoadedAt < 60 * 60_000) return;
+  try {
+    upcoming = await loadUpcoming({ follows: getFollows(), leagues: getLeagues() });
+    upcomingLoadedAt = Date.now();
+    upcomingError = false;
+  } catch (err) {
+    console.error(err);
+    upcomingError = true;
+  }
+}
+
+function upcomingView() {
+  if (upcomingError && !upcoming) return '<p class="note">Couldn\'t load upcoming games. Tap ↻ to try again.</p>';
+  if (!upcoming) return '<p class="empty">Loading the next 4 weeks…</p>';
+  if (!upcoming.length) return '<p class="empty">No upcoming games found.</p>';
+  const byIso = new Map(upcoming.map((d) => [d.iso, d]));
+  if (!selectedIso || !byIso.has(selectedIso)) {
+    selectedIso = (upcoming.find((d) => d.mine.length) ?? upcoming[0]).iso;
+  }
+  // Calendar grid, Sunday to Saturday, from this week through the last saved day.
+  const first = new Date(); first.setHours(12, 0, 0, 0); first.setDate(first.getDate() - first.getDay());
+  const last = upcoming[upcoming.length - 1].day;
+  const cells = [];
+  for (let d = new Date(first); d <= last || d.getDay() !== 0; d.setDate(d.getDate() + 1)) {
+    const iso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    const info = byIso.get(iso);
+    const label = d.getDate() === 1 || !cells.length ? `${monthFmt.format(d)} ${d.getDate()}` : d.getDate();
+    const isToday = d.toDateString() === new Date().toDateString();
+    if (!info) { cells.push(`<div class="day off ${isToday ? 'today' : ''}" ${isToday ? 'title="Today: see All games"' : ''}><span class="num">${label}</span></div>`); continue; }
+    const dots = (info.mine.length ? '<i class="dot mine"></i>' : '') + (info.big.length ? '<i class="dot big"></i>' : '') +
+      (info.league.length || info.other.length ? '<i class="dot follow"></i>' : '');
+    cells.push(`<button class="day ${iso === selectedIso ? 'sel' : ''}" data-iso="${iso}" aria-pressed="${iso === selectedIso}"
+      aria-label="${esc(longDayFmt.format(info.day))}: ${info.all.length} games${info.mine.length ? ', your team plays' : ''}">
+      <span class="num">${label}</span><span class="dots">${dots}</span></button>`);
+  }
+  const sel = byIso.get(selectedIso);
+  const names = getFollows().map((f) => f.name).join(', ');
+  const highlights = section('Your teams', sel.mine, names ? `No games for ${names}.` : '') +
+    section('Big games', sel.big, '') +
+    [...new Set(sel.league.map((i) => i.league))].map((l) => section(l, sel.league.filter((i) => i.league === l), '')).join('') +
+    section('Your sports', sel.other, '');
+  return `
+    <div class="cal">
+      <div class="dow">${['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((x) => `<span>${x}</span>`).join('')}</div>
+      <div class="grid">${cells.join('')}</div>
+      <p class="legend"><i class="dot mine"></i> Your team <i class="dot big"></i> Big game <i class="dot follow"></i> Sports &amp; leagues you follow</p>
+    </div>
+    <h2 class="dayhead">${esc(longDayFmt.format(sel.day))}</h2>
+    ${showAllDay ? section(`All ${sel.all.length} games, most important first`, sel.ranked, 'No games.') : highlights}
+    ${sel.all.length ? `<button class="link" id="toggle-all">${showAllDay ? 'Show just the highlights' : `Show all ${sel.all.length} games this day`}</button>` : ''}`;
+}
+
+$('#list').addEventListener('click', (e) => {
+  const day = e.target.closest('.day[data-iso]');
+  if (day) { selectedIso = day.dataset.iso; showAllDay = false; renderView(); return; }
+  if (e.target.closest('#toggle-all')) { showAllDay = !showAllDay; renderView(); }
+});
+
 function renderView() {
   for (const btn of document.querySelectorAll('[data-view]')) btn.setAttribute('aria-selected', String(btn.dataset.view === view));
+  if (view === 'upcoming') {
+    $('#list').innerHTML = upcomingView();
+    if (!upcoming && !upcomingError) ensureUpcoming().then(() => { if (view === 'upcoming') renderView(); });
+    return;
+  }
   if (!lastData) return;
   const { failed, quiet } = lastData;
   $('#list').innerHTML = (view === 'all' ? allGamesView(lastData) : highlightsView(lastData)) +
@@ -107,7 +180,8 @@ function renderView() {
 if (!document.querySelector('.tabs')) {
   $('#list').insertAdjacentHTML('beforebegin', `<nav class="tabs" role="tablist" aria-label="View">
     <button role="tab" data-view="all" aria-selected="true">All games</button>
-    <button role="tab" data-view="highlights" aria-selected="false">Highlights</button></nav>`);
+    <button role="tab" data-view="highlights" aria-selected="false">Highlights</button>
+    <button role="tab" data-view="upcoming" aria-selected="false">Upcoming</button></nav>`);
 }
 document.querySelector('.tabs').onclick = (e) => {
   const btn = e.target.closest('[data-view]');
@@ -126,6 +200,8 @@ async function render() {
   $('#refresh').disabled = true;
   try {
     lastData = await loadToday({ today, follows: getFollows(), leagues: getLeagues() });
+    if (view === 'upcoming') await ensureUpcoming(true);
+    else upcoming = null; // re-sort with current follows next time it opens
     renderView();
     $('#updated').textContent = `Updated ${timeFmt.format(new Date())}`;
     clearTimeout(refreshTimer);
@@ -154,7 +230,8 @@ function renderSports() {
   const box = (key, label) => `<label class="toggle"><input type="checkbox" data-key="${esc(key)}" ${on.has(key) ? 'checked' : ''}><span>${esc(label)}</span></label>`;
   $('#sports').innerHTML =
     `<p class="hint">Sports</p><div class="toggles">${FOLLOWABLE_SPORTS.map((s) => box(s.key, s.label)).join('')}</div>` +
-    `<p class="hint">Whole leagues (every game, not just one team)</p><div class="toggles">${LEAGUES.map((l) => box(l.league, l.league)).join('')}</div>`;
+    `<p class="hint">Whole leagues (every game, not just one team)</p><div class="toggles">${LEAGUES.filter((l) => !l.cup).map((l) => box(l.league, l.league)).join('')}</div>` +
+    `<p class="hint">Cups</p><div class="toggles">${LEAGUES.filter((l) => l.cup).map((l) => box(l.league, l.league)).join('')}</div>`;
 }
 
 async function renderPicker() {

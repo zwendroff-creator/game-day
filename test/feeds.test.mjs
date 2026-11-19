@@ -239,3 +239,27 @@ test('college top matchup needs two ranked teams', () => {
   assert.equal(items.find((i) => i.id.endsWith('c1')).tag, 'Top 25 matchup');
   assert.equal(items.find((i) => i.id.endsWith('c2')).tag, '');
 });
+
+// --- Upcoming ----------------------------------------------------------------
+import { loadUpcoming, organize, classifyTeamGame } from '../feeds.js';
+
+test('saved games are re-sorted with his current teams', () => {
+  const raw = parseLeague(nfl, { events: [game('9', at(13), team('9', 'GB', 'Green Bay Packers', 'home'), team('8', 'DET', 'Detroit Lions', 'away'))] }, today, []);
+  assert.equal(raw[0].section, 'rest');
+  const json = JSON.parse(JSON.stringify(raw)); // as stored in upcoming.json
+  const again = classifyTeamGame(json[0], DEFAULT_TEAMS);
+  assert.equal(again.section, 'mine');
+  assert.equal(again.title, 'Packers vs Lions');
+  assert.equal(organize(json, { follows: [], leagues: ['NFL'] })[0].section, 'league');
+});
+
+test('loadUpcoming splits each future day into highlights', async () => {
+  const tomorrow = '2026-11-23';
+  const raw = parseLeague(nfl, { events: [game('9', new Date(2026, 10, 23, 13).toISOString(), team('9', 'GB', 'Green Bay Packers', 'home'), team('8', 'DET', 'Detroit Lions', 'away'))] }, new Date(2026, 10, 23, 12), []);
+  const file = { days: { '2026-11-22': [], [tomorrow]: JSON.parse(JSON.stringify(raw)), '2026-11-24': [] } };
+  const fetchFn = async () => ({ ok: true, json: async () => file });
+  const days = await loadUpcoming({ follows: DEFAULT_TEAMS, fetchFn, from: today });
+  assert.deepEqual(days.map((d) => d.iso), [tomorrow, '2026-11-24']); // today is left out
+  assert.equal(days[0].mine[0].title, 'Packers vs Lions');
+  assert.ok(days[0].mine[0].start instanceof Date);
+});
