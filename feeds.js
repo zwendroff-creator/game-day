@@ -239,7 +239,7 @@ const QUIET_NAME = { 'Formula 1': 'F1', ATP: 'Tennis', WTA: 'Tennis', UFC: 'UFC'
 //   rest = everything else; failed = feeds that didn't load; quiet = followed sports with nothing today
 // leagues: followed league/sport keys (see FOLLOWABLE_SPORTS and LEAGUES).
 // cyclingUrl: the app reads ./cycling.json; Node can read TheSportsDB directly.
-export async function loadToday({ today = new Date(), follows, leagues = DEFAULT_LEAGUES, fetchFn = fetch, cyclingUrl = './cycling.json' }) {
+export async function loadToday({ today = new Date(), follows, leagues = DEFAULT_LEAGUES, hidden = [], fetchFn = fetch, cyclingUrl = './cycling.json' }) {
   const day = ymd(today);
   const jobs = [
     ...LEAGUES.map((f) => [f.league, () => getJson(fetchFn, espnScoreboard(f.path, day)).then((j) => parseLeague(f, j, today, follows))]),
@@ -252,10 +252,10 @@ export async function loadToday({ today = new Date(), follows, leagues = DEFAULT
   results.forEach((r, i) => (r.status === 'fulfilled' ? all.push(...r.value) : failed.push(jobs[i][0])));
   all.push(...cyclocrossToday(today));
 
-  const items = organize(all, { follows, leagues });
+  const items = organize(all, { follows, leagues, hidden });
 
   // Followed whole sports that loaded fine but have nothing on today.
-  const followed = new Set(leagues);
+  const followed = new Set(leagues.filter((k) => !hidden.includes(k)));
   const quiet = [];
   for (const name of uniq(Object.values(QUIET_NAME))) {
     const keys = Object.keys(QUIET_NAME).filter((k) => QUIET_NAME[k] === name && followed.has(k));
@@ -269,14 +269,17 @@ export async function loadToday({ today = new Date(), follows, leagues = DEFAULT
 // Sorts raw items into his teams / big games / followed leagues and sports /
 // the rest, ranks them, removes duplicates and orders them by time.
 // Whole-sport items must arrive with section 'other' (as parsed).
-export function organize(raw, { follows, leagues = DEFAULT_LEAGUES }) {
+// Leagues and sports in `hidden` are left out, except his own teams' games.
+export function organize(raw, { follows, leagues = DEFAULT_LEAGUES, hidden = [] }) {
   const followed = new Set(leagues);
+  const hide = new Set(hidden);
   const seen = new Set();
   const out = [];
   for (const r of raw) {
     if (seen.has(r.id)) continue;
     seen.add(r.id);
     const item = r.home ? classifyTeamGame(r, follows) : { ...r };
+    if (hide.has(followKey(item)) && item.section !== 'mine') continue;
     const on = followed.has(followKey(item));
     if (item.section === 'rest' && on) item.section = 'league';
     else if (item.section === 'other' && !on) item.section = 'rest';
@@ -300,7 +303,7 @@ export function split(items) {
 // --- Upcoming (next 4 weeks) -------------------------------------------------
 // upcoming.json is built daily by tools/upcoming.mjs: { updated, days: { 'YYYY-MM-DD': [items] } }.
 // Returns [{ day: Date, iso, ...split(items) }] for each day, sorted by date.
-export async function loadUpcoming({ follows, leagues = DEFAULT_LEAGUES, fetchFn = fetch, url = './upcoming.json', from = new Date() }) {
+export async function loadUpcoming({ follows, leagues = DEFAULT_LEAGUES, hidden = [], fetchFn = fetch, url = './upcoming.json', from = new Date() }) {
   const json = await getJson(fetchFn, url);
   const todayIso = isoDay(from);
   return Object.keys(json.days ?? {}).filter((iso) => iso > todayIso).sort().map((iso) => {
@@ -308,7 +311,7 @@ export async function loadUpcoming({ follows, leagues = DEFAULT_LEAGUES, fetchFn
     const day = new Date(y, m - 1, d, 12);
     const raw = json.days[iso].map((i) => ({ ...i, start: i.start ? new Date(i.start) : null }));
     raw.push(...cyclocrossToday(day));
-    return { day, iso, ...split(organize(raw, { follows, leagues })) };
+    return { day, iso, ...split(organize(raw, { follows, leagues, hidden })) };
   });
 }
 

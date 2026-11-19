@@ -31,7 +31,7 @@ async function main() {
   // "Today" in Miami, whatever time zone the runner is in.
   const miamiNow = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/New_York' }));
   process.env.TZ = 'America/New_York';
-  const result = await loadToday({ today: miamiNow, follows: setup.follows?.length ? setup.follows : DEFAULT_TEAMS, leagues: setup.leagues, cyclingUrl: 'direct' });
+  const result = await loadToday({ today: miamiNow, follows: setup.follows?.length ? setup.follows : DEFAULT_TEAMS, leagues: setup.leagues, hidden: setup.hidden ?? [], cyclingUrl: 'direct' });
   const msg = summarize(result);
   if (!msg) { console.log('Nothing on today, no notification sent.'); return; }
   webpush.setVapidDetails('https://github.com', process.env.VAPID_PUBLIC_KEY, process.env.VAPID_PRIVATE_KEY);

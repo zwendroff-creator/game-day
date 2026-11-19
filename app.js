@@ -28,6 +28,18 @@ function getLeagues() {
 function setLeagues(list) {
   try { localStorage.setItem(LEAGUES_KEY, JSON.stringify(list)); } catch {}
 }
+// Leagues and sports he never wants to see (his own teams' games still show).
+const HIDDEN_KEY = 'hidden.v1';
+function getHidden() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(HIDDEN_KEY));
+    if (Array.isArray(saved)) return saved;
+  } catch {}
+  return [];
+}
+function setHidden(list) {
+  try { localStorage.setItem(HIDDEN_KEY, JSON.stringify(list)); } catch {}
+}
 const sameTeam = (a, b) => a.group === b.group && String(a.id) === String(b.id);
 
 // --- Rendering ---------------------------------------------------------------
@@ -106,7 +118,7 @@ const longDayFmt = new Intl.DateTimeFormat(undefined, { weekday: 'long', month: 
 async function ensureUpcoming(force = false) {
   if (!force && upcoming && Date.now() - upcomingLoadedAt < 60 * 60_000) return;
   try {
-    upcoming = await loadUpcoming({ follows: getFollows(), leagues: getLeagues() });
+    upcoming = await loadUpcoming({ follows: getFollows(), leagues: getLeagues(), hidden: getHidden() });
     upcomingLoadedAt = Date.now();
     upcomingError = false;
   } catch (err) {
@@ -199,7 +211,7 @@ async function render() {
   $('#list').setAttribute('aria-busy', 'true');
   $('#refresh').disabled = true;
   try {
-    lastData = await loadToday({ today, follows: getFollows(), leagues: getLeagues() });
+    lastData = await loadToday({ today, follows: getFollows(), leagues: getLeagues(), hidden: getHidden() });
     if (view === 'upcoming') await ensureUpcoming(true);
     else upcoming = null; // re-sort with current follows next time it opens
     renderView();
@@ -234,6 +246,28 @@ function renderSports() {
     `<p class="hint">Cups</p><div class="toggles">${LEAGUES.filter((l) => l.cup).map((l) => box(l.league, l.league)).join('')}</div>`;
 }
 
+// Checkboxes for leagues and sports to hide everywhere.
+function renderHidden() {
+  if (!$('#hidden')) {
+    $('#sports').insertAdjacentHTML('afterend', `<h3>Hide leagues</h3>
+      <p class="hint">Ticked leagues and sports are left off every tab. Your own teams' games still show.</p><div id="hidden"></div>`);
+    $('#hidden').onchange = onHiddenChange;
+  }
+  const on = new Set(getHidden());
+  const box = (key, label) => `<label class="toggle hide"><input type="checkbox" data-key="${esc(key)}" ${on.has(key) ? 'checked' : ''}><span>${esc(label)}</span></label>`;
+  $('#hidden').innerHTML =
+    `<div class="toggles">${FOLLOWABLE_SPORTS.map((s) => box(s.key, s.label)).join('')}${LEAGUES.map((l) => box(l.league, l.league)).join('')}</div>`;
+}
+function onHiddenChange(e) {
+  const box = e.target.closest('input[data-key]');
+  if (!box) return;
+  const keys = new Set(getHidden());
+  if (box.checked) keys.add(box.dataset.key); else keys.delete(box.dataset.key);
+  setHidden([...keys]);
+  // A hidden league can't also be followed.
+  if (box.checked && getLeagues().includes(box.dataset.key)) { setLeagues(getLeagues().filter((k) => k !== box.dataset.key)); renderSports(); }
+}
+
 async function renderPicker() {
   const path = $('#league').value;
   const box = $('#teams');
@@ -261,9 +295,10 @@ async function renderPicker() {
 
 function setupSettings() {
   $('#league').innerHTML = PICKER_LEAGUES.map((l) => `<option value="${l.path}">${esc(l.league)}</option>`).join('');
-  $('#open-settings').onclick = () => { renderFollows(); renderSports(); renderPicker(); $('#settings').showModal(); };
+  $('#open-settings').onclick = () => { renderFollows(); renderSports(); renderHidden(); renderPicker(); $('#settings').showModal(); };
   $('#close-settings').onclick = () => { $('#settings').close(); render(); };
   $('#league').onchange = renderPicker;
+  if ($('#hidden')) $('#hidden').onchange = onHiddenChange;
   $('#follows').onclick = (e) => {
     const btn = e.target.closest('[data-remove]');
     if (!btn) return;
@@ -273,13 +308,15 @@ function setupSettings() {
     renderFollows();
     renderPicker();
   };
-  $('#reset-teams').onclick = () => { setFollows(DEFAULT_TEAMS); setLeagues(DEFAULT_LEAGUES); renderFollows(); renderSports(); renderPicker(); };
+  $('#reset-teams').onclick = () => { setFollows(DEFAULT_TEAMS); setLeagues(DEFAULT_LEAGUES); setHidden([]); renderFollows(); renderSports(); renderHidden(); renderPicker(); };
   $('#sports').onchange = (e) => {
     const box = e.target.closest('input[data-key]');
     if (!box) return;
     const keys = new Set(getLeagues());
     if (box.checked) keys.add(box.dataset.key); else keys.delete(box.dataset.key);
     setLeagues([...keys]);
+    // Following a league un-hides it.
+    if (box.checked && getHidden().includes(box.dataset.key)) { setHidden(getHidden().filter((k) => k !== box.dataset.key)); renderHidden(); }
   };
 }
 
@@ -310,7 +347,7 @@ function setupAlerts() {
       const reg = await navigator.serviceWorker.ready;
       const sub = (await reg.pushManager.getSubscription())
         ?? (await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: keyBytes(VAPID_PUBLIC_KEY) }));
-      const code = btoa(unescape(encodeURIComponent(JSON.stringify({ subscription: sub.toJSON(), follows: getFollows(), leagues: getLeagues() }))));
+      const code = btoa(unescape(encodeURIComponent(JSON.stringify({ subscription: sub.toJSON(), follows: getFollows(), leagues: getLeagues(), hidden: getHidden() }))));
       $('#code').value = code;
       $('#alerts-code').hidden = false;
       $('#alerts-on').textContent = 'Alerts are on for this phone';

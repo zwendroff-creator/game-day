@@ -263,3 +263,16 @@ test('loadUpcoming splits each future day into highlights', async () => {
   assert.equal(days[0].mine[0].title, 'Packers vs Lions');
   assert.ok(days[0].mine[0].start instanceof Date);
 });
+
+test('hidden leagues are left out, except his own teams', async () => {
+  const { organize } = await import('../feeds.js');
+  const mk = (id, league, homeId, extra = {}) => ({ id, league, sport: 'Soccer', group: 'soccer', start: new Date('2026-11-22T15:00:00Z'), title: id,
+    home: { id: homeId, abbreviation: 'H', short: 'Home' }, away: { id: '999', abbreviation: 'A', short: 'Away' }, ...extra });
+  const follows = [{ group: 'soccer', id: '83', name: 'Barcelona' }];
+  const items = organize([mk('a', 'MLS', '1'), mk('b', 'Copa del Rey', '83'), mk('c', 'Premier League', '2')],
+    { follows, leagues: [], hidden: ['MLS', 'Copa del Rey'] });
+  const ids = items.map((i) => i.id).sort();
+  assert.deepEqual(ids, ['b', 'c']);
+  const f1 = organize([{ id: 'f', league: 'Formula 1', sport: 'F1', section: 'other', title: 'Race', start: null }], { follows, leagues: ['Formula 1'], hidden: ['Formula 1'] });
+  assert.equal(f1.length, 0);
+});
