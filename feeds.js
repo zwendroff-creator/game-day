@@ -70,7 +70,6 @@ export function parseLeague(feed, json, today, follows) {
     const [home, away] = [teams.find((c) => c.homeAway === 'home') ?? teams[0], teams.find((c) => c.homeAway === 'away') ?? teams[1]];
     const rivalry = findRivalry(home.team?.displayName, away.team?.displayName);
     const postseason = ev.season?.type === 3 && feed.group !== 'soccer';
-    if (!ours && !rivalry && !postseason) continue;
 
     let title;
     if (ours) {
@@ -82,7 +81,7 @@ export function parseLeague(feed, json, today, follows) {
     const hasScore = teams.every((c) => c.score != null && c.score !== '') && (comp.status?.type?.state ?? 'pre') !== 'pre';
     items.push({
       id: `${feed.group}:${ev.id}`,
-      section: ours ? 'mine' : 'big',
+      section: ours ? 'mine' : rivalry || postseason ? 'big' : 'rest',
       sport: feed.sport,
       league: feed.league,
       title,
@@ -203,7 +202,8 @@ async function getJson(fetchFn, url) {
   return res.json();
 }
 
-// Returns { mine, big, other, failed: [names that didn't load], quiet: [sports with nothing today] }.
+// Returns { all, mine, big, other, rest, failed: [names that didn't load], quiet: [sports with nothing today] }.
+// all = every item today; mine/big/other = the Highlights; rest = every other team-sport game.
 // cyclingUrl: the app reads ./cycling.json; Node can read TheSportsDB directly.
 export async function loadToday({ today = new Date(), follows, fetchFn = fetch, cyclingUrl = './cycling.json' }) {
   const day = ymd(today);
@@ -227,6 +227,8 @@ export async function loadToday({ today = new Date(), follows, fetchFn = fetch, 
   const seen = new Set();
   const items = sortItems(all.filter((i) => (seen.has(i.id) ? false : seen.add(i.id))));
   return {
+    all: items,
+    rest: items.filter((i) => i.section === 'rest'),
     mine: items.filter((i) => i.section === 'mine'),
     big: items.filter((i) => i.section === 'big'),
     other: items.filter((i) => i.section === 'other'),

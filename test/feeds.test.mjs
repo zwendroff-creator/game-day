@@ -20,9 +20,11 @@ test('finds followed team and keeps national broadcast', () => {
       { broadcasts: [{ market: 'national', names: ['FOX'] }] }),
     game('2', at(13), team('6', 'DAL', 'Dallas Cowboys', 'home'), team('19', 'NYG', 'New York Giants', 'away')),
   ] };
-  const items = parseLeague(nfl, json, today, DEFAULT_TEAMS);
+  const all = parseLeague(nfl, json, today, DEFAULT_TEAMS);
+  assert.equal(all.length, 2);
+  assert.equal(all.find((i) => i.id === 'nfl:2').section, 'rest');
+  const items = all.filter((i) => i.section === 'mine');
   assert.equal(items.length, 1);
-  assert.equal(items[0].section, 'mine');
   assert.equal(items[0].title, 'Packers vs Bears');
   assert.equal(items[0].tag, 'Bears–Packers rivalry');
   assert.deepEqual(items[0].watch, ['FOX']);
@@ -39,9 +41,10 @@ test('rivalry games not involving his teams go to Big games', () => {
     game('5', at(15), team('86', 'RMA', 'Real Madrid', 'home'), team('1068', 'ATM', 'Atlético Madrid', 'away')),
     game('6', at(15), team('95', 'GIR', 'Girona', 'home'), team('85', 'VAL', 'Valencia', 'away')),
   ] };
-  const items = parseLeague(laliga, json, today, DEFAULT_TEAMS);
+  const all = parseLeague(laliga, json, today, DEFAULT_TEAMS);
+  assert.deepEqual(all.map((i) => i.section).sort(), ['big', 'rest']);
+  const items = all.filter((i) => i.section === 'big');
   assert.equal(items.length, 1);
-  assert.equal(items[0].section, 'big');
   assert.equal(items[0].tag, 'Madrid derby');
   assert.deepEqual(items[0].watch, ['ESPN+']);
 });
@@ -115,6 +118,7 @@ test('loadToday survives failing feeds and groups sections', async () => {
   };
   const r = await loadToday({ today, follows: DEFAULT_TEAMS, fetchFn });
   assert.equal(r.mine.length, 1);
+  assert.ok(r.all.length >= r.mine.length + r.other.length);
   assert.deepEqual(r.failed, ['UFC']);
   assert.deepEqual(r.quiet, ['F1', 'Tennis']); // Nov 22 has a cyclocross race
 });

@@ -67,3 +67,9 @@ select { width: 100%; font-size: 16px; padding: 10px; border-radius: 10px; borde
 .team.on { opacity: .7; }
 .primary { display: block; width: 100%; border: 0; background: var(--accent); color: #fff; font-size: 16px; font-weight: 600; padding: 12px; border-radius: 12px; margin-top: 8px; cursor: pointer; }
 textarea { width: 100%; font: 12px ui-monospace, monospace; border-radius: 10px; border: 1px solid var(--line); background: var(--surface); color: var(--text); padding: 8px; }
+.tabs { position: sticky; top: env(safe-area-inset-top); z-index: 2; display: flex; gap: 4px; padding: 4px; margin: 8px 0 0; background: var(--line); border-radius: 12px; }
+.tabs button { flex: 1; border: 0; background: none; color: var(--muted); font-size: 15px; font-weight: 600; padding: 8px; border-radius: 9px; cursor: pointer; }
+.tabs button[aria-selected="true"] { background: var(--surface); color: var(--text); box-shadow: 0 1px 2px rgb(0 0 0 / .1); }
+section h2 .count { font-weight: 500; opacity: .7; margin-left: 4px; }
+.card.is-mine { box-shadow: inset 3px 0 0 var(--accent), 0 1px 2px rgb(0 0 0 / .06); }
+.pill.mine { background: var(--chip); color: var(--chip-text); }
