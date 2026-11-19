@@ -4,6 +4,7 @@ import {
   LEAGUES, SPORT_FEEDS, CYCLING_DIRECT, RIVALRIES, WATCH_FALLBACK, MIAMI_LOCAL,
   espnScoreboard,
 } from './sources.js';
+import { CYCLOCROSS } from './cyclocross.js';
 
 // Each item looks like:
 // { id, section: 'mine'|'big'|'other', sport, league, title, subtitle, tag,
@@ -175,6 +176,19 @@ export function parseCycling(json, today) {
   });
 }
 
+// --- Cyclocross (hand-kept calendar) -----------------------------------------
+export function cyclocrossToday(today, calendar = CYCLOCROSS) {
+  return calendar.filter((r) => r.date === isoDay(today)).map((r) => ({
+    id: `cx:${r.date}:${r.place}`,
+    section: 'other', sport: 'Cycling', league: 'Cyclocross',
+    title: `Cyclocross: ${r.place}`,
+    subtitle: r.series,
+    tag: r.series === 'World Championships' ? 'Worlds' : r.series === 'European Championships' ? 'Euros' : '',
+    score: '', start: null, allDay: true, state: 'pre', statusText: '',
+    watch: r.watch,
+  }));
+}
+
 // --- Putting it together -----------------------------------------------------
 const SPORT_ORDER = ['Soccer', 'Football', 'Basketball', 'Baseball', 'Hockey', 'F1', 'Tennis', 'Combat', 'Cycling'];
 
@@ -209,6 +223,7 @@ export async function loadToday({ today = new Date(), follows, fetchFn = fetch, 
     all.push(...r.value);
     if (SPORT_NAMES[name] && !r.value.length) quiet.push(SPORT_NAMES[name]);
   });
+  all.push(...cyclocrossToday(today));
   const seen = new Set();
   const items = sortItems(all.filter((i) => (seen.has(i.id) ? false : seen.add(i.id))));
   return {
@@ -217,7 +232,9 @@ export async function loadToday({ today = new Date(), follows, fetchFn = fetch, 
     other: items.filter((i) => i.section === 'other'),
     failed: uniq(failed),
     // Tennis counts as quiet only if both tours are.
-    quiet: uniq(quiet).filter((q) => q !== 'Tennis' || quiet.filter((x) => x === 'Tennis').length === 2),
+    quiet: uniq(quiet)
+      .filter((q) => q !== 'Tennis' || quiet.filter((x) => x === 'Tennis').length === 2)
+      .filter((q) => q !== 'Cycling' || !items.some((i) => i.sport === 'Cycling')),
   };
 }
 

@@ -1,7 +1,7 @@
 // Run with: node --test test/
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { parseLeague, parseSportFeed, parseCycling, loadToday, findRivalry, loadTeams } from '../feeds.js';
+import { parseLeague, parseSportFeed, parseCycling, loadToday, findRivalry, loadTeams, cyclocrossToday } from '../feeds.js';
 import { LEAGUES, DEFAULT_TEAMS } from '../sources.js';
 
 const today = new Date(2026, 10, 22, 9, 0); // Sun Nov 22 2026, local time
@@ -116,7 +116,7 @@ test('loadToday survives failing feeds and groups sections', async () => {
   const r = await loadToday({ today, follows: DEFAULT_TEAMS, fetchFn });
   assert.equal(r.mine.length, 1);
   assert.deepEqual(r.failed, ['UFC']);
-  assert.deepEqual(r.quiet, ['F1', 'Tennis', 'Cycling']);
+  assert.deepEqual(r.quiet, ['F1', 'Tennis']); // Nov 22 has a cyclocross race
 });
 
 test('morning summary lists his games first', async () => {
@@ -141,4 +141,21 @@ test('team picker reads teams.json and sorts by name', async () => {
 
 test('Heat-Knicks is flagged as a rivalry', () => {
   assert.equal(findRivalry('New York Knicks', 'Miami Heat').name, 'Heat–Knicks');
+});
+
+test('cyclocross shows on race day with where to watch', () => {
+  const items = cyclocrossToday(today); // Nov 22: X2O Trofee Beringen
+  assert.equal(items.length, 1);
+  assert.equal(items[0].title, 'Cyclocross: Beringen');
+  assert.deepEqual(items[0].watch, ['HBO Max']);
+  const wc = cyclocrossToday(new Date(2026, 11, 13));
+  assert.equal(wc[0].subtitle, 'UCI Cyclocross World Cup');
+  assert.deepEqual(wc[0].watch, ['FloBikes', 'HBO Max']);
+});
+
+test('cycling is not "quiet" on a cyclocross day', async () => {
+  const fetchFn = async () => ({ ok: true, json: async () => ({ events: [] }) });
+  const r = await loadToday({ today, follows: DEFAULT_TEAMS, fetchFn });
+  assert.ok(r.other.some((i) => i.league === 'Cyclocross'));
+  assert.ok(!r.quiet.includes('Cycling'));
 });

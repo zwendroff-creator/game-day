@@ -18,7 +18,8 @@ A home-screen web app that shows Victor what's on today: his teams first, then b
 
 ## Data sources
 - ESPN's public scoreboard feeds (undocumented, free, no key).
-- TheSportsDB free tier for cycling.
+- TheSportsDB free tier (test key 123) for road cycling.
+- `cyclocross.js`: the 2026–27 cyclocross calendar (World Cup, Superprestige, X2O Trofee, Euros, Worlds), kept by hand. Update it each autumn.
 - Where-to-watch backups in `sources.js` (check each season; US rights change).
 
 ## Setup on GitHub (one time)

@@ -1,7 +1,7 @@
 // Keeps the app opening instantly and shows the last loaded games when offline.
-const SHELL = 'gameday-shell-v4';
-const DATA = 'gameday-data-v4';
-const FILES = ['./', './index.html', './styles.css', './app.js', './feeds.js', './sources.js', './push-config.js', './manifest.json',
+const SHELL = 'gameday-shell-v5';
+const DATA = 'gameday-data-v5';
+const FILES = ['./', './index.html', './styles.css', './app.js', './feeds.js', './sources.js', './cyclocross.js', './push-config.js', './manifest.json',
   './icons/icon-192.png', './icons/apple-touch-icon.png'];
 
 self.addEventListener('install', (e) => {
