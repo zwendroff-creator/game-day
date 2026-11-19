@@ -58,13 +58,14 @@ async function render() {
   $('#list').setAttribute('aria-busy', 'true');
   $('#refresh').disabled = true;
   try {
-    const { mine, big, other, failed } = await loadToday({ today, follows: getFollows() });
+    const { mine, big, other, failed, quiet } = await loadToday({ today, follows: getFollows() });
     const names = getFollows().map((f) => f.name).join(', ');
     $('#list').innerHTML =
       section('Your teams', mine, names ? `No games today for ${names}.` : 'Add a team to follow with the ⚙︎ button.') +
       section('Big games today', big, '') +
       section('Also on today', other, '') +
       (!big.length && !other.length ? '<p class="empty">Nothing else big on today.</p>' : '') +
+      (quiet.length ? `<p class="note">Nothing on today in ${esc(quiet.join(', '))}.</p>` : '') +
       (failed.length ? `<p class="note">Couldn't load: ${esc(failed.join(', '))}. Tap ↻ to try again.</p>` : '');
     $('#updated').textContent = `Updated ${timeFmt.format(new Date())}`;
     clearTimeout(refreshTimer);

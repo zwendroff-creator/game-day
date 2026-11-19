@@ -46,9 +46,9 @@ export const SPORT_FEEDS = [
 // Cycling isn't on ESPN, so it comes from TheSportsDB's free tier.
 // Browsers can't read TheSportsDB directly, so the publish job saves the
 // season calendar as cycling.json next to the app (see tools/cycling.mjs).
+// "123" is TheSportsDB's free test key (the old "3" key was retired).
 export const CYCLING_DIRECT = (isoDate) =>
-  `https://www.thesportsdb.com/api/v1/json/3/eventsday.php?d=${isoDate}&s=Cycling`;
-export const CYCLING_LEAGUES = ['4465', '5312']; // UCI World Tour, UCI Women's World Tour
+  `https://www.thesportsdb.com/api/v1/json/123/eventsday.php?d=${isoDate}&s=Cycling`;
 
 export const espnScoreboard = (path, yyyymmdd) => `${ESPN}/${path}/scoreboard?dates=${yyyymmdd}`;
 export const espnTeams = (path) => `${ESPN}/${path}/teams`;

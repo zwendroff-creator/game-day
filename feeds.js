@@ -189,7 +189,7 @@ async function getJson(fetchFn, url) {
   return res.json();
 }
 
-// Returns { mine, big, other, failed: [competition names that didn't load] }.
+// Returns { mine, big, other, failed: [names that didn't load], quiet: [sports with nothing today] }.
 // cyclingUrl: the app reads ./cycling.json; Node can read TheSportsDB directly.
 export async function loadToday({ today = new Date(), follows, fetchFn = fetch, cyclingUrl = './cycling.json' }) {
   const day = ymd(today);
@@ -201,7 +201,14 @@ export async function loadToday({ today = new Date(), follows, fetchFn = fetch, 
   const results = await Promise.allSettled(jobs.map(([, run]) => run()));
   const all = [];
   const failed = [];
-  results.forEach((r, i) => (r.status === 'fulfilled' ? all.push(...r.value) : failed.push(jobs[i][0])));
+  const quiet = []; // whole sports that loaded fine but have nothing today
+  const SPORT_NAMES = { 'Formula 1': 'F1', ATP: 'Tennis', WTA: 'Tennis', UFC: 'UFC', Cycling: 'Cycling' };
+  results.forEach((r, i) => {
+    const name = jobs[i][0];
+    if (r.status !== 'fulfilled') { failed.push(name); return; }
+    all.push(...r.value);
+    if (SPORT_NAMES[name] && !r.value.length) quiet.push(SPORT_NAMES[name]);
+  });
   const seen = new Set();
   const items = sortItems(all.filter((i) => (seen.has(i.id) ? false : seen.add(i.id))));
   return {
@@ -209,6 +216,8 @@ export async function loadToday({ today = new Date(), follows, fetchFn = fetch, 
     big: items.filter((i) => i.section === 'big'),
     other: items.filter((i) => i.section === 'other'),
     failed: uniq(failed),
+    // Tennis counts as quiet only if both tours are.
+    quiet: uniq(quiet).filter((q) => q !== 'Tennis' || quiet.filter((x) => x === 'Tennis').length === 2),
   };
 }
 

@@ -116,6 +116,7 @@ test('loadToday survives failing feeds and groups sections', async () => {
   const r = await loadToday({ today, follows: DEFAULT_TEAMS, fetchFn });
   assert.equal(r.mine.length, 1);
   assert.deepEqual(r.failed, ['UFC']);
+  assert.deepEqual(r.quiet, ['F1', 'Tennis', 'Cycling']);
 });
 
 test('morning summary lists his games first', async () => {
