@@ -1,7 +1,7 @@
 // Turns the raw feeds into one simple list of "things to watch today".
 // No DOM code here, so it can be tested with Node.
 import {
-  LEAGUES, SPORT_FEEDS, CYCLING_URL, RIVALRIES, WATCH_FALLBACK, MIAMI_LOCAL,
+  LEAGUES, SPORT_FEEDS, CYCLING_DIRECT, RIVALRIES, WATCH_FALLBACK, MIAMI_LOCAL,
   espnScoreboard, espnTeams,
 } from './sources.js';
 
@@ -143,6 +143,7 @@ export function parseSportFeed(feed, json, today) {
       const dayStart = new Date(today); dayStart.setHours(0, 0, 0, 0);
       const dayEnd = new Date(today); dayEnd.setHours(23, 59, 59, 999);
       if (isNaN(from) || from > dayEnd || to < dayStart) continue;
+      if (ev.status?.type?.state === 'post') continue; // already over
       items.push({
         ...base,
         id: `${feed.path}:${ev.id}`,
@@ -158,8 +159,9 @@ export function parseSportFeed(feed, json, today) {
 }
 
 // --- Cycling (TheSportsDB) ---------------------------------------------------
+// Works on a single day's list or a whole season: only today's races are kept.
 export function parseCycling(json, today) {
-  return (json?.events ?? []).map((ev) => {
+  return (json?.events ?? []).filter((ev) => !ev.dateEvent || ev.dateEvent === isoDay(today)).map((ev) => {
     const ts = ev.strTimestamp ? new Date(/Z|[+-]\d\d:?\d\d$/.test(ev.strTimestamp) ? ev.strTimestamp : ev.strTimestamp + 'Z') : null;
     const timed = ts && !isNaN(ts) && sameLocalDay(ts, today);
     return {
@@ -188,12 +190,13 @@ async function getJson(fetchFn, url) {
 }
 
 // Returns { mine, big, other, failed: [competition names that didn't load] }.
-export async function loadToday({ today = new Date(), follows, fetchFn = fetch }) {
+// cyclingUrl: the app reads ./cycling.json; Node can read TheSportsDB directly.
+export async function loadToday({ today = new Date(), follows, fetchFn = fetch, cyclingUrl = './cycling.json' }) {
   const day = ymd(today);
   const jobs = [
     ...LEAGUES.map((f) => [f.league, () => getJson(fetchFn, espnScoreboard(f.path, day)).then((j) => parseLeague(f, j, today, follows))]),
     ...SPORT_FEEDS.map((f) => [f.league, () => getJson(fetchFn, espnScoreboard(f.path, day)).then((j) => parseSportFeed(f, j, today))]),
-    ['Cycling', () => getJson(fetchFn, CYCLING_URL(isoDay(today))).then((j) => parseCycling(j, today))],
+    ['Cycling', () => getJson(fetchFn, cyclingUrl === 'direct' ? CYCLING_DIRECT(isoDay(today)) : cyclingUrl).then((j) => parseCycling(j, today))],
   ];
   const results = await Promise.allSettled(jobs.map(([, run]) => run()));
   const all = [];

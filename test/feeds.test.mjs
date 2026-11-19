@@ -94,6 +94,19 @@ test('cycling handles empty off-season response', () => {
   assert.deepEqual(parseCycling({ events: null }, today), []);
 });
 
+test('cycling season list keeps only today', () => {
+  const items = parseCycling({ events: [
+    { idEvent: '1', strEvent: 'Il Lombardia', dateEvent: '2026-11-22', strLeague: 'UCI World Tour' },
+    { idEvent: '2', strEvent: 'Paris-Roubaix', dateEvent: '2026-04-12', strLeague: 'UCI World Tour' },
+  ] }, today);
+  assert.deepEqual(items.map((i) => i.title), ['Il Lombardia']);
+});
+
+test('finished tennis tournaments are hidden', () => {
+  const json = { events: [{ id: 't', name: 'ATP Finals', date: new Date(2026, 10, 15).toISOString(), endDate: new Date(2026, 10, 22).toISOString(), status: { type: { state: 'post' } } }] };
+  assert.equal(parseSportFeed({ sport: 'Tennis', league: 'ATP', path: 'tennis/atp', kind: 'tournament' }, json, today).length, 0);
+});
+
 test('loadToday survives failing feeds and groups sections', async () => {
   const fetchFn = async (url) => {
     if (url.includes('football/nfl')) return { ok: true, json: async () => ({ events: [game('1', at(13), team('9', 'GB', 'Green Bay Packers', 'home'), team('3', 'CHI', 'Chicago Bears', 'away'))] }) };
