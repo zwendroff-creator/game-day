@@ -231,4 +231,12 @@ setupSettings();
 setupAlerts();
 render();
 
-if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(() => {});
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('./sw.js', { updateViaCache: 'none' }).then((reg) => reg.update()).catch(() => {});
+  // When a new version takes over, reload once so the whole page matches it.
+  const hadOld = !!navigator.serviceWorker.controller;
+  let reloaded = false;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (hadOld && !reloaded) { reloaded = true; location.reload(); }
+  });
+}

@@ -1,6 +1,6 @@
-// Keeps the app opening instantly and shows the last loaded games when offline.
-const SHELL = 'gameday-shell-v7';
-const DATA = 'gameday-data-v7';
+// Always loads the newest app, and shows the last loaded games when offline.
+const SHELL = 'gameday-shell-v8';
+const DATA = 'gameday-data-v8';
 const FILES = ['./', './index.html', './styles.css', './app.js', './feeds.js', './sources.js', './cyclocross.js', './push-config.js', './manifest.json',
   './icons/icon-192.png', './icons/apple-touch-icon.png'];
 
@@ -18,14 +18,12 @@ self.addEventListener('fetch', (e) => {
   const url = new URL(e.request.url);
   if (e.request.method !== 'GET') return;
   if (url.origin === location.origin) {
-    // App files: serve from cache, refresh in the background.
-    e.respondWith(caches.match(e.request).then((hit) => {
-      const net = fetch(e.request).then((res) => {
-        if (res.ok) caches.open(SHELL).then((c) => c.put(e.request, res.clone()));
-        return res;
-      }).catch(() => hit);
-      return hit || net;
-    }));
+    // App files: always get the newest copy (skipping the browser's cache),
+    // and use the saved copy only when offline.
+    e.respondWith(fetch(e.request.url, { cache: 'no-cache' }).then((res) => {
+      if (res.ok) { const copy = res.clone(); caches.open(SHELL).then((c) => c.put(e.request, copy)); }
+      return res;
+    }).catch(() => caches.match(e.request, { ignoreSearch: true })));
   } else {
     // Sports data: always try the network first, fall back to the last copy.
     e.respondWith(fetch(e.request).then((res) => {
