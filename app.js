@@ -93,6 +93,12 @@ function renderView() {
     (failed.length ? `<p class="note">Couldn't load: ${esc(failed.join(', '))}. Tap ↻ to try again.</p>` : '');
 }
 
+// Older cached copies of index.html have no tabs, so add them if missing.
+if (!document.querySelector('.tabs')) {
+  $('#list').insertAdjacentHTML('beforebegin', `<nav class="tabs" role="tablist" aria-label="View">
+    <button role="tab" data-view="all" aria-selected="true">All games</button>
+    <button role="tab" data-view="highlights" aria-selected="false">Highlights</button></nav>`);
+}
 document.querySelector('.tabs').onclick = (e) => {
   const btn = e.target.closest('[data-view]');
   if (!btn || btn.dataset.view === view) return;
