@@ -1,7 +1,7 @@
 // Run with: node --test test/
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { parseLeague, parseSportFeed, parseCycling, loadToday, findRivalry } from '../feeds.js';
+import { parseLeague, parseSportFeed, parseCycling, loadToday, findRivalry, loadTeams } from '../feeds.js';
 import { LEAGUES, DEFAULT_TEAMS } from '../sources.js';
 
 const today = new Date(2026, 10, 22, 9, 0); // Sun Nov 22 2026, local time
@@ -126,4 +126,15 @@ test('morning summary lists his games first', async () => {
   assert.equal(msg.title, 'Game day: 1 for your teams');
   assert.match(msg.body, /Heat vs Knicks\n.*North London derby: Tottenham at Arsenal/);
   assert.equal(summarize({ mine: [], big: [], other: [] }), null);
+});
+
+test('team picker reads teams.json and sorts by name', async () => {
+  const fetchFn = async () => ({ ok: true, json: async () => ({ 'football/nfl': [
+    { id: '9', abbr: 'GB', name: 'Packers', fullName: 'Green Bay Packers' },
+    { id: '3', abbr: 'CHI', name: 'Bears', fullName: 'Chicago Bears' },
+  ] }) });
+  const teams = await loadTeams('football/nfl', fetchFn);
+  assert.deepEqual(teams.map((t) => t.fullName), ['Chicago Bears', 'Green Bay Packers']);
+  assert.equal(teams[0].group, 'nfl');
+  assert.equal(teams[0].league, 'NFL');
 });

@@ -2,7 +2,7 @@
 // No DOM code here, so it can be tested with Node.
 import {
   LEAGUES, SPORT_FEEDS, CYCLING_DIRECT, RIVALRIES, WATCH_FALLBACK, MIAMI_LOCAL,
-  espnScoreboard, espnTeams,
+  espnScoreboard,
 } from './sources.js';
 
 // Each item looks like:
@@ -221,16 +221,14 @@ export async function loadToday({ today = new Date(), follows, fetchFn = fetch, 
   };
 }
 
-// Teams in one league, for the "add a team" picker.
-export async function loadTeams(leaguePath, fetchFn = fetch) {
+// Teams in one league, for the "add a team" picker. Read from teams.json,
+// which the publish job builds (see tools/teams.mjs).
+let teamsFile;
+export async function loadTeams(leaguePath, fetchFn = fetch, url = './teams.json') {
   const feed = LEAGUES.find((l) => l.path === leaguePath);
-  const json = await getJson(fetchFn, espnTeams(leaguePath));
-  const teams = json?.sports?.[0]?.leagues?.[0]?.teams ?? [];
-  return teams
-    .map(({ team }) => ({
-      group: feed.group, id: String(team.id), abbr: team.abbreviation,
-      name: team.shortDisplayName ?? team.displayName, fullName: team.displayName,
-      league: feed.league, logo: team.logos?.[0]?.href ?? '',
-    }))
+  teamsFile ??= getJson(fetchFn, url).catch((err) => { teamsFile = undefined; throw err; });
+  const all = await teamsFile;
+  return (all[leaguePath] ?? [])
+    .map((t) => ({ ...t, group: feed.group, league: feed.league }))
     .sort((a, b) => a.fullName.localeCompare(b.fullName));
 }
