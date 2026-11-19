@@ -39,3 +39,7 @@ In ⚙︎ › "Hide leagues", he can tick leagues or sports he never wants to se
 
 ## Upcoming
 The publish job saves the next 4 weeks of games as `upcoming.json` (`tools/upcoming.mjs`, about 1,200 small ESPN requests, refreshed daily). The Upcoming tab shows them on a calendar. Dots mark days with his teams (blue), big games (orange) or sports and leagues he follows (grey). Tap a day for its highlights, or for all of that day's games.
+
+## Cyclocross start times
+
+The publish job runs `tools/cxtimes.mjs` each morning. For races in the next 30 days it reads the schedule on the race's cyclocross24.com page (times there are Belgian local time) and saves the elite women's and men's start times to `cx-times.json`. The app shows the earliest elite start as the time, and both on the card. If a page can't be read, the race stays "All day". Odd town names are mapped in `SLUG_ALIASES` in cyclocross.js.

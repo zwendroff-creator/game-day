@@ -201,16 +201,30 @@ export function parseCycling(json, today) {
 }
 
 // --- Cyclocross (hand-kept calendar) -----------------------------------------
-export function cyclocrossToday(today, calendar = CYCLOCROSS) {
-  return calendar.filter((r) => r.date === isoDay(today)).map((r) => ({
-    id: `cx:${r.date}:${r.place}`,
-    section: 'other', sport: 'Cycling', league: 'Cyclocross',
-    title: `Cyclocross: ${r.place}`,
-    subtitle: r.series,
-    tag: r.series === 'World Championships' ? 'Worlds' : r.series === 'European Championships' ? 'Euros' : '',
-    score: '', start: null, allDay: true, state: 'pre', statusText: '',
-    watch: r.watch,
-  }));
+export function cyclocrossToday(today, calendar = CYCLOCROSS, times = {}) {
+  return calendar.filter((r) => r.date === isoDay(today)).map((r) => {
+    const t = times[`${r.date}|${r.place}`] ?? {};
+    const women = t.women ? new Date(t.women) : null;
+    const men = t.men ? new Date(t.men) : null;
+    const start = [women, men].filter(Boolean).sort((a, b) => a - b)[0] ?? null;
+    const fmt = (d) => d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+    const schedule = [women && `Women ${fmt(women)}`, men && `Men ${fmt(men)}`].filter(Boolean).join(', ');
+    return {
+      id: `cx:${r.date}:${r.place}`,
+      section: 'other', sport: 'Cycling', league: 'Cyclocross',
+      title: `Cyclocross: ${r.place}`,
+      subtitle: schedule ? `${r.series} · ${schedule}` : r.series,
+      tag: r.series === 'World Championships' ? 'Worlds' : r.series === 'European Championships' ? 'Euros' : '',
+      score: '', start, allDay: !start, state: 'pre', statusText: '',
+      watch: r.watch,
+    };
+  });
+}
+
+// Cyclocross start times saved by the publish job; missing file means "All day".
+async function loadCxTimes(fetchFn, url) {
+  if (!url) return {};
+  return getJson(fetchFn, url).then((j) => j?.races ?? {}).catch(() => ({}));
 }
 
 // --- Putting it together -----------------------------------------------------
@@ -239,7 +253,7 @@ const QUIET_NAME = { 'Formula 1': 'F1', ATP: 'Tennis', WTA: 'Tennis', UFC: 'UFC'
 //   rest = everything else; failed = feeds that didn't load; quiet = followed sports with nothing today
 // leagues: followed league/sport keys (see FOLLOWABLE_SPORTS and LEAGUES).
 // cyclingUrl: the app reads ./cycling.json; Node can read TheSportsDB directly.
-export async function loadToday({ today = new Date(), follows, leagues = DEFAULT_LEAGUES, hidden = [], fetchFn = fetch, cyclingUrl = './cycling.json' }) {
+export async function loadToday({ today = new Date(), follows, leagues = DEFAULT_LEAGUES, hidden = [], fetchFn = fetch, cyclingUrl = './cycling.json', cxTimesUrl = './cx-times.json' }) {
   const day = ymd(today);
   const jobs = [
     ...LEAGUES.map((f) => [f.league, () => getJson(fetchFn, espnScoreboard(f.path, day)).then((j) => parseLeague(f, j, today, follows))]),
@@ -250,7 +264,7 @@ export async function loadToday({ today = new Date(), follows, leagues = DEFAULT
   const all = [];
   const failed = [];
   results.forEach((r, i) => (r.status === 'fulfilled' ? all.push(...r.value) : failed.push(jobs[i][0])));
-  all.push(...cyclocrossToday(today));
+  all.push(...cyclocrossToday(today, undefined, await loadCxTimes(fetchFn, cxTimesUrl)));
 
   const items = organize(all, { follows, leagues, hidden });
 
@@ -303,14 +317,15 @@ export function split(items) {
 // --- Upcoming (next 4 weeks) -------------------------------------------------
 // upcoming.json is built daily by tools/upcoming.mjs: { updated, days: { 'YYYY-MM-DD': [items] } }.
 // Returns [{ day: Date, iso, ...split(items) }] for each day, sorted by date.
-export async function loadUpcoming({ follows, leagues = DEFAULT_LEAGUES, hidden = [], fetchFn = fetch, url = './upcoming.json', from = new Date() }) {
+export async function loadUpcoming({ follows, leagues = DEFAULT_LEAGUES, hidden = [], fetchFn = fetch, url = './upcoming.json', cxTimesUrl = './cx-times.json', from = new Date() }) {
   const json = await getJson(fetchFn, url);
+  const cxTimes = await loadCxTimes(fetchFn, cxTimesUrl);
   const todayIso = isoDay(from);
   return Object.keys(json.days ?? {}).filter((iso) => iso > todayIso).sort().map((iso) => {
     const [y, m, d] = iso.split('-').map(Number);
     const day = new Date(y, m - 1, d, 12);
     const raw = json.days[iso].map((i) => ({ ...i, start: i.start ? new Date(i.start) : null }));
-    raw.push(...cyclocrossToday(day));
+    raw.push(...cyclocrossToday(day, undefined, cxTimes));
     return { day, iso, ...split(organize(raw, { follows, leagues, hidden })) };
   });
 }

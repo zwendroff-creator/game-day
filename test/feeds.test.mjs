@@ -276,3 +276,25 @@ test('hidden leagues are left out, except his own teams', async () => {
   const f1 = organize([{ id: 'f', league: 'Formula 1', sport: 'F1', section: 'other', title: 'Race', start: null }], { follows, leagues: ['Formula 1'], hidden: ['Formula 1'] });
   assert.equal(f1.length, 0);
 });
+
+test('cyclocross start times are read from a race page and shown on the card', async () => {
+  const { parseCxSchedule, cxSlugs, CYCLOCROSS } = await import('../cyclocross.js');
+  const html = `<h1>X2O Trofee Beringen</h1><span><img src="calendar.svg"> 22 November 2026</span>
+    <h2>Schedule</h2><p>Sunday 22 November 2026</p>
+    <div><span>10:00</span><span>10:00</span><a href="/race/18570/">Men Junior</a></div>
+    <div><span>13:45</span><span>13:45</span><a href="/race/18568/">Women Elite</a></div>
+    <div><span>15:00</span><span>15:00</span><a href="/race/18567/">Men Elite</a></div>
+    <p>Local Time</p><p>Time in Beringen - 00:35.</p>`;
+  const t = parseCxSchedule(html, '2026-11-22');
+  assert.equal(t.women, '2026-11-22T12:45:00.000Z');
+  assert.equal(t.men, '2026-11-22T14:00:00.000Z');
+  assert.equal(parseCxSchedule(html, '2027-01-23'), null); // a different race in the same town
+  assert.deepEqual(cxSlugs('Hamme-Zogge').slice(0, 1), ['hamme']);
+  assert.ok(cxSlugs('Tábor').includes('tabor'));
+  const [item] = cyclocrossToday(new Date(2026, 10, 22, 12), CYCLOCROSS, { '2026-11-22|Beringen': t });
+  assert.equal(item.allDay, false);
+  assert.equal(item.start.toISOString(), '2026-11-22T12:45:00.000Z');
+  assert.match(item.subtitle, /Women 7:45\sAM, Men 9:00\sAM/);
+  const [plain] = cyclocrossToday(new Date(2026, 10, 22, 12));
+  assert.equal(plain.allDay, true);
+});
