@@ -1,0 +1,12 @@
+{
+  "name": "game-day",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test test/*.test.mjs",
+    "start": "npx --yes serve -l 8080 ."
+  },
+  "dependencies": {
+    "web-push": "3.6.7"
+  }
+}

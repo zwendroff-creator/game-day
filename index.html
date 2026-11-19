@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Game Day</title>
+  <meta name="description" content="Today's games for Victor's teams, plus the big rivalry games, and where to watch them.">
+  <meta name="theme-color" content="#0f172a">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Game Day">
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" href="icons/icon-192.png">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header>
+    <div>
+      <h1>Game Day</h1>
+      <p id="date"></p>
+    </div>
+    <div class="actions">
+      <button id="refresh" aria-label="Refresh">↻</button>
+      <button id="open-settings" aria-label="Teams I follow">⚙︎</button>
+    </div>
+  </header>
+
+  <main id="list" aria-busy="true" aria-live="polite">
+    <p class="empty">Loading today's games…</p>
+  </main>
+  <footer><span id="updated"></span></footer>
+
+  <dialog id="settings">
+    <div class="sheet">
+      <div class="sheet-head">
+        <h2>Teams I follow</h2>
+        <button id="close-settings">Done</button>
+      </div>
+      <ul id="follows"></ul>
+      <button id="reset-teams" class="link">Reset to my original four</button>
+      <h3>Add a team</h3>
+      <select id="league" aria-label="League"></select>
+      <div id="teams"></div>
+      <section id="alerts" hidden>
+        <h3>Morning alerts</h3>
+        <p class="empty" id="alerts-msg">Get a notification each morning with today's games.</p>
+        <button id="alerts-on" class="primary">Turn on morning alerts</button>
+        <div id="alerts-code" hidden>
+          <p class="empty">Last step: send this code to Zac so he can switch your alerts on.</p>
+          <textarea id="code" readonly rows="3"></textarea>
+          <button id="share-code" class="primary">Send code</button>
+        </div>
+      </section>
+    </div>
+  </dialog>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,20 @@
+name: Morning rundown
+on:
+  schedule:
+    # 12:30 UTC = 7:30 AM in Miami during standard time (8:30 AM in summer).
+    - cron: '30 12 * * *'
+  workflow_dispatch: {}
+jobs:
+  send:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - run: npm install --no-audit --no-fund
+      - run: node notify/morning.mjs
+        env:
+          TZ: America/New_York
+          VAPID_PUBLIC_KEY: ${{ secrets.VAPID_PUBLIC_KEY }}
+          VAPID_PRIVATE_KEY: ${{ secrets.VAPID_PRIVATE_KEY }}
+          PUSH_SETUP: ${{ secrets.PUSH_SETUP }}
