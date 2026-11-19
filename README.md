@@ -31,3 +31,6 @@ A home-screen web app that shows Victor what's on today: his teams first, then b
 
 ## How All games is ranked
 `ranking.js` scores each game. It weighs Victor's teams first, then playoffs, rivalries, live close games, top matchups (both teams win 60%+), national TV, and how big the league is. Finished games drop to the bottom. A "🔥 Close game" label marks games that are late and within a few points (NBA 6, NFL 8, MLB 2 runs, NHL 1 goal, soccer 1 goal in the second half). "Close finish" marks games that ended by a hair or in overtime.
+
+## Following sports and leagues
+In ⚙︎ › "Sports & leagues I follow", Victor can follow whole sports (F1, tennis, UFC, golf, cycling, cyclocross) or whole leagues (NFL, NHL, Premier League, college, and others). Followed ones show in Highlights and the morning alert. All games always shows everything.
