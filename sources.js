@@ -24,6 +24,8 @@ export const LEAGUES = [
   { path: 'soccer/uefa.europa',      league: 'Europa League',    sport: 'Soccer',     group: 'soccer' },
   { path: 'soccer/esp.copa_del_rey', league: 'Copa del Rey',     sport: 'Soccer',     group: 'soccer' },
   { path: 'soccer/esp.super_cup',    league: 'Supercopa',        sport: 'Soccer',     group: 'soccer' },
+  { path: 'soccer/eng.fa',           league: 'FA Cup',           sport: 'Soccer',     group: 'soccer' },
+  { path: 'soccer/eng.league_cup',   league: 'Carabao Cup',      sport: 'Soccer',     group: 'soccer' },
 ];
 
 // Leagues offered in the "add a team" picker (US leagues + main soccer leagues).
@@ -164,6 +166,8 @@ export const WATCH_FALLBACK = {
   'Europa League':    ['Paramount+'],
   'Copa del Rey':     ['ESPN+'],
   'Supercopa':        ['ESPN+'],
+  'FA Cup':           ['ESPN+'],
+  'Carabao Cup':      ['Paramount+'],
   'Formula 1':        ['Apple TV'],
   'UFC':              ['Paramount+', 'CBS'],
   'ATP':              ['Tennis Channel', 'ESPN'],

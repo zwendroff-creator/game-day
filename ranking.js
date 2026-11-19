@@ -5,7 +5,7 @@
 const LEAGUE_WEIGHT = {
   'NFL': 30, 'Champions League': 25, 'NBA': 18, 'Premier League': 16, 'La Liga': 16,
   'MLB': 14, 'UFC': 18, 'Supercopa': 15, 'Bundesliga': 10, 'Serie A': 10, 'Europa League': 10,
-  'Copa del Rey': 10, 'NHL': 8, 'MLS': 8, 'Ligue 1': 7, 'ATP': 8, 'WTA': 8, 'Cycling': 8,
+  'Copa del Rey': 10, 'FA Cup': 12, 'Carabao Cup': 10, 'NHL': 8, 'MLS': 8, 'Ligue 1': 7, 'ATP': 8, 'WTA': 8, 'Cycling': 8,
   'Cyclocross': 6, 'Scottish Prem': 5, 'Argentina': 5,
   'College Football': 15, 'College Basketball': 8, 'PGA Tour': 12, 'LPGA': 6,
 };
