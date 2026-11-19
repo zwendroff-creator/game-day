@@ -71,11 +71,14 @@ let view = 'all';
 try { if (localStorage.getItem(VIEW_KEY) === 'highlights') view = 'highlights'; } catch {}
 let lastData = null;
 
-// All games: ranked by importance (see ranking.js), most important first.
+// All games: Top games ranked by importance (see ranking.js), then the rest by time.
 function allGamesView({ ranked }) {
   if (!ranked.length) return '<p class="empty">No games found for today.</p>';
   if (ranked.length < 8) return section('Ranked by importance', ranked, '');
-  return section('Top games', ranked.slice(0, 5), '') + section('More today, most important first', ranked.slice(5), '');
+  // Top 5 by importance, then everything else by start time (all-day events first).
+  const t = (i) => (i.start ? i.start.getTime() : -1);
+  const more = ranked.slice(5).sort((a, b) => t(a) - t(b));
+  return section('Top games', ranked.slice(0, 5), '') + section('More today', more, '');
 }
 
 function highlightsView({ mine, big, league, other }) {
