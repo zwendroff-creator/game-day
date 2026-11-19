@@ -196,7 +196,7 @@ test('NFL outranks NHL, and F1 race outranks practice', () => {
 test('win share reads records', () => {
   assert.equal(winShare('8-2', 'Football'), 0.8);
   assert.equal(winShare('6-2-2', 'Soccer'), 0.7); // W-D-L
-  assert.equal(winShare('1-1', 'Basketball'), null); // too few games
+  assert.equal(winShare('3-1', 'Basketball'), null); // too few games
 });
 
 test('loadToday returns games ranked, his team first', async () => {
@@ -226,4 +226,16 @@ test('following a whole league puts its games in Highlights', async () => {
   assert.deepEqual(on.league.map((i) => i.title), ['Jackets at Bruins']);
   assert.equal(on.other.filter((i) => i.sport === 'F1').length, 0); // F1 unfollowed: only in All games
   assert.ok(on.all.some((i) => i.sport === 'F1'));
+});
+
+test('college top matchup needs two ranked teams', () => {
+  const ncaab = LEAGUES.find((l) => l.group === 'ncaab');
+  const ranked = (id, name, ha, rank) => ({ ...team(id, id, name, ha), curatedRank: { current: rank }, records: [{ type: 'total', summary: '4-0' }] });
+  const json = { events: [
+    game('c1', at(19), ranked('1', 'Kansas Jayhawks', 'home', 5), ranked('2', 'Houston Cougars', 'away', 8)),
+    game('c2', at(19), ranked('3', 'USC Trojans', 'home', 99), ranked('4', 'Tarleton State Texans', 'away', 99)),
+  ] };
+  const items = parseLeague(ncaab, json, today, []);
+  assert.equal(items.find((i) => i.id.endsWith('c1')).tag, 'Top 25 matchup');
+  assert.equal(items.find((i) => i.id.endsWith('c2')).tag, '');
 });

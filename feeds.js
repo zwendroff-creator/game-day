@@ -84,9 +84,17 @@ export function parseLeague(feed, json, today, follows) {
       const r = (c.records ?? []).find((x) => x.type === 'total' || x.name === 'overall' || x.name === 'All Splits') ?? c.records?.[0];
       return winShare(r?.summary, feed.sport);
     };
-    const shares = [record(home), record(away)];
-    const quality = shares.every((x) => x != null) ? (shares[0] + shares[1]) / 2 : null;
-    const topMatchup = shares.every((x) => x != null && x >= 0.6);
+    let quality = null;
+    let topMatchup = false;
+    if (feed.group === 'ncaaf' || feed.group === 'ncaab') {
+      // College records mean little early on, so use the AP Top 25 instead.
+      const ranks = [home, away].map((c) => c.curatedRank?.current).map((r) => (r >= 1 && r <= 25 ? r : null));
+      if (ranks.every((r) => r != null)) { topMatchup = true; quality = 1 - (ranks[0] + ranks[1]) / 100; }
+    } else {
+      const shares = [record(home), record(away)];
+      quality = shares.every((x) => x != null) ? (shares[0] + shares[1]) / 2 : null;
+      topMatchup = shares.every((x) => x != null && x >= 0.6);
+    }
     const national = (comp.broadcasts ?? []).some((b) => (b.market ?? '').toLowerCase() === 'national');
     items.push({
       id: `${feed.group}:${ev.id}`,
@@ -95,7 +103,7 @@ export function parseLeague(feed, json, today, follows) {
       league: feed.league,
       title,
       subtitle: feed.league,
-      tag: rivalry?.name ?? (postseason ? 'Playoffs' : topMatchup ? 'Top matchup' : ''),
+      tag: rivalry?.name ?? (postseason ? 'Playoffs' : topMatchup ? (feed.group.startsWith('ncaa') ? 'Top 25 matchup' : 'Top matchup') : ''),
       start,
       rivalry: !!rivalry, postseason, national, quality, topMatchup,
       period: comp.status?.period ?? ev.status?.period ?? 0,

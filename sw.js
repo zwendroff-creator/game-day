@@ -1,6 +1,6 @@
 // Always loads the newest app, and shows the last loaded games when offline.
-const SHELL = 'gameday-shell-v11';
-const DATA = 'gameday-data-v11';
+const SHELL = 'gameday-shell-v12';
+const DATA = 'gameday-data-v12';
 const FILES = ['./', './index.html', './styles.css', './app.js', './feeds.js', './sources.js', './cyclocross.js', './ranking.js', './push-config.js', './manifest.json',
   './icons/icon-192.png', './icons/apple-touch-icon.png'];
 

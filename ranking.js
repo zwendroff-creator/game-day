@@ -57,7 +57,7 @@ export function winShare(summary, sport) {
   let wins, games;
   if (sport === 'Soccer' && n.length === 3) { wins = n[0] + n[1] / 2; games = n[0] + n[1] + n[2]; }
   else { wins = n[0]; games = n.reduce((a, b) => a + b, 0); }
-  return games >= 4 ? wins / games : null;
+  return games >= 6 ? wins / games : null; // too few games says little
 }
 
 export function rank(item) {
