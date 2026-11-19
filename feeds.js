@@ -2,7 +2,7 @@
 // No DOM code here, so it can be tested with Node.
 import {
   LEAGUES, SPORT_FEEDS, CYCLING_DIRECT, RIVALRIES, WATCH_FALLBACK, MIAMI_LOCAL,
-  espnScoreboard,
+  espnScoreboard, DEFAULT_LEAGUES,
 } from './sources.js';
 import { CYCLOCROSS } from './cyclocross.js';
 import { rank, winShare } from './ranking.js';
@@ -149,7 +149,7 @@ export function parseSportFeed(feed, json, today) {
         watch: broadcastsFor(main ?? comps[0], feed.league),
       });
     } else if (feed.kind === 'tournament') {
-      // Tennis: tournaments run for days, so they show as all-day items.
+      // Tennis and golf: tournaments run for days, so they show as all-day items.
       const from = new Date(ev.date);
       const to = new Date(ev.endDate ?? ev.date);
       const dayStart = new Date(today); dayStart.setHours(0, 0, 0, 0);
@@ -201,7 +201,7 @@ export function cyclocrossToday(today, calendar = CYCLOCROSS) {
 }
 
 // --- Putting it together -----------------------------------------------------
-const SPORT_ORDER = ['Soccer', 'Football', 'Basketball', 'Baseball', 'Hockey', 'F1', 'Tennis', 'Combat', 'Cycling'];
+const SPORT_ORDER = ['Soccer', 'Football', 'Basketball', 'Baseball', 'Hockey', 'F1', 'Tennis', 'Golf', 'Combat', 'Cycling'];
 
 export function sortItems(items) {
   const t = (i) => (i.start ? i.start.getTime() : -1);
@@ -214,10 +214,19 @@ async function getJson(fetchFn, url) {
   return res.json();
 }
 
-// Returns { all, mine, big, other, rest, failed: [names that didn't load], quiet: [sports with nothing today] }.
-// all = every item today; mine/big/other = the Highlights; rest = every other team-sport game.
+// What a followed-league setting matches: the league, or "Cycling" for all road races.
+export const followKey = (item) => (item.sport === 'Cycling' && item.league !== 'Cyclocross' ? 'Cycling' : item.league);
+
+// Which "Nothing on today in ..." name each followed whole sport reports as.
+const QUIET_NAME = { 'Formula 1': 'F1', ATP: 'Tennis', WTA: 'Tennis', UFC: 'UFC', 'PGA Tour': 'Golf', LPGA: 'Golf', Cycling: 'Cycling', Cyclocross: 'Cycling' };
+
+// Returns { all, ranked, mine, big, league, other, rest, failed, quiet }:
+//   all/ranked = every item today (by time / by importance)
+//   mine, big, league (followed leagues' games), other (followed whole sports) = the Highlights
+//   rest = everything else; failed = feeds that didn't load; quiet = followed sports with nothing today
+// leagues: followed league/sport keys (see FOLLOWABLE_SPORTS and LEAGUES).
 // cyclingUrl: the app reads ./cycling.json; Node can read TheSportsDB directly.
-export async function loadToday({ today = new Date(), follows, fetchFn = fetch, cyclingUrl = './cycling.json' }) {
+export async function loadToday({ today = new Date(), follows, leagues = DEFAULT_LEAGUES, fetchFn = fetch, cyclingUrl = './cycling.json' }) {
   const day = ymd(today);
   const jobs = [
     ...LEAGUES.map((f) => [f.league, () => getJson(fetchFn, espnScoreboard(f.path, day)).then((j) => parseLeague(f, j, today, follows))]),
@@ -227,29 +236,38 @@ export async function loadToday({ today = new Date(), follows, fetchFn = fetch, 
   const results = await Promise.allSettled(jobs.map(([, run]) => run()));
   const all = [];
   const failed = [];
-  const quiet = []; // whole sports that loaded fine but have nothing today
-  const SPORT_NAMES = { 'Formula 1': 'F1', ATP: 'Tennis', WTA: 'Tennis', UFC: 'UFC', Cycling: 'Cycling' };
-  results.forEach((r, i) => {
-    const name = jobs[i][0];
-    if (r.status !== 'fulfilled') { failed.push(name); return; }
-    all.push(...r.value);
-    if (SPORT_NAMES[name] && !r.value.length) quiet.push(SPORT_NAMES[name]);
-  });
+  results.forEach((r, i) => (r.status === 'fulfilled' ? all.push(...r.value) : failed.push(jobs[i][0])));
   all.push(...cyclocrossToday(today));
+
+  // Sort each item into Highlights or not, by what he follows.
+  const followed = new Set(leagues);
+  for (const item of all) {
+    const on = followed.has(followKey(item));
+    if (item.section === 'rest' && on) item.section = 'league';
+    else if (item.section === 'other' && !on) item.section = 'rest';
+  }
+
   const seen = new Set();
   const items = sortItems(all.filter((i) => (seen.has(i.id) ? false : seen.add(i.id))).map(rank));
+
+  // Followed whole sports that loaded fine but have nothing on today.
+  const quiet = [];
+  for (const name of uniq(Object.values(QUIET_NAME))) {
+    const keys = Object.keys(QUIET_NAME).filter((k) => QUIET_NAME[k] === name && followed.has(k));
+    if (!keys.length || keys.some((k) => failed.includes(k))) continue;
+    if (!items.some((i) => keys.includes(followKey(i)))) quiet.push(name);
+  }
+
   return {
     all: items,
     ranked: [...items].sort((a, b) => (b.importance - a.importance) || ((a.start?.getTime() ?? 0) - (b.start?.getTime() ?? 0))),
     rest: items.filter((i) => i.section === 'rest'),
     mine: items.filter((i) => i.section === 'mine'),
     big: items.filter((i) => i.section === 'big'),
+    league: items.filter((i) => i.section === 'league'),
     other: items.filter((i) => i.section === 'other'),
     failed: uniq(failed),
-    // Tennis counts as quiet only if both tours are.
-    quiet: uniq(quiet)
-      .filter((q) => q !== 'Tennis' || quiet.filter((x) => x === 'Tennis').length === 2)
-      .filter((q) => q !== 'Cycling' || !items.some((i) => i.sport === 'Cycling')),
+    quiet,
   };
 }
 

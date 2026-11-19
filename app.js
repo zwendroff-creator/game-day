@@ -1,5 +1,5 @@
 import { loadToday, loadTeams } from './feeds.js';
-import { DEFAULT_TEAMS, PICKER_LEAGUES } from './sources.js';
+import { DEFAULT_TEAMS, PICKER_LEAGUES, LEAGUES, FOLLOWABLE_SPORTS, DEFAULT_LEAGUES } from './sources.js';
 import { VAPID_PUBLIC_KEY } from './push-config.js';
 
 const $ = (sel) => document.querySelector(sel);
@@ -16,13 +16,25 @@ function getFollows() {
 function setFollows(list) {
   try { localStorage.setItem(STORE_KEY, JSON.stringify(list)); } catch {}
 }
+// Whole sports and leagues he follows (saved on this phone).
+const LEAGUES_KEY = 'leagues.v1';
+function getLeagues() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(LEAGUES_KEY));
+    if (Array.isArray(saved)) return saved;
+  } catch {}
+  return DEFAULT_LEAGUES;
+}
+function setLeagues(list) {
+  try { localStorage.setItem(LEAGUES_KEY, JSON.stringify(list)); } catch {}
+}
 const sameTeam = (a, b) => a.group === b.group && String(a.id) === String(b.id);
 
 // --- Rendering ---------------------------------------------------------------
 const timeFmt = new Intl.DateTimeFormat(undefined, { hour: 'numeric', minute: '2-digit' });
 const dayFmt = new Intl.DateTimeFormat(undefined, { weekday: 'long', month: 'long', day: 'numeric' });
 
-const ICON = { Soccer: '⚽', Football: '🏈', Basketball: '🏀', Baseball: '⚾', Hockey: '🏒', F1: '🏎️', Tennis: '🎾', Combat: '🥊', Cycling: '🚴' };
+const ICON = { Soccer: '⚽', Football: '🏈', Basketball: '🏀', Baseball: '⚾', Hockey: '🏒', F1: '🏎️', Tennis: '🎾', Combat: '🥊', Cycling: '🚴', Golf: '⛳' };
 
 function esc(s) {
   return String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -66,12 +78,17 @@ function allGamesView({ ranked }) {
   return section('Top games', ranked.slice(0, 5), '') + section('More today, most important first', ranked.slice(5), '');
 }
 
-function highlightsView({ mine, big, other }) {
+function highlightsView({ mine, big, league, other }) {
   const names = getFollows().map((f) => f.name).join(', ');
+  // Games from whole leagues he follows, one heading per league.
+  const byLeague = new Map();
+  for (const item of league) byLeague.set(item.league, [...(byLeague.get(item.league) ?? []), item]);
+  const leagueSections = [...byLeague.entries()].map(([name, items]) => section(name, items, '')).join('');
   return section('Your teams', mine, names ? `No games today for ${names}.` : 'Add a team to follow with the ⚙︎ button.') +
     section('Big games today', big, '') +
-    section('Also on today', other, '') +
-    (!big.length && !other.length ? '<p class="empty">Nothing else big on today.</p>' : '');
+    leagueSections +
+    section('Your sports', other, '') +
+    (!big.length && !league.length && !other.length ? '<p class="empty">Nothing else on today from what you follow.</p>' : '');
 }
 
 function renderView() {
@@ -105,7 +122,7 @@ async function render() {
   $('#list').setAttribute('aria-busy', 'true');
   $('#refresh').disabled = true;
   try {
-    lastData = await loadToday({ today, follows: getFollows() });
+    lastData = await loadToday({ today, follows: getFollows(), leagues: getLeagues() });
     renderView();
     $('#updated').textContent = `Updated ${timeFmt.format(new Date())}`;
     clearTimeout(refreshTimer);
@@ -126,6 +143,15 @@ function renderFollows() {
   $('#follows').innerHTML = list.length
     ? list.map((f, i) => `<li><span>${esc(f.name)} <small>${esc(f.league ?? '')}</small></span><button data-remove="${i}" aria-label="Stop following ${esc(f.name)}">Remove</button></li>`).join('')
     : '<li class="empty">No teams yet.</li>';
+}
+
+// Checkboxes for whole sports and leagues.
+function renderSports() {
+  const on = new Set(getLeagues());
+  const box = (key, label) => `<label class="toggle"><input type="checkbox" data-key="${esc(key)}" ${on.has(key) ? 'checked' : ''}><span>${esc(label)}</span></label>`;
+  $('#sports').innerHTML =
+    `<p class="hint">Sports</p><div class="toggles">${FOLLOWABLE_SPORTS.map((s) => box(s.key, s.label)).join('')}</div>` +
+    `<p class="hint">Whole leagues (every game, not just one team)</p><div class="toggles">${LEAGUES.map((l) => box(l.league, l.league)).join('')}</div>`;
 }
 
 async function renderPicker() {
@@ -155,7 +181,7 @@ async function renderPicker() {
 
 function setupSettings() {
   $('#league').innerHTML = PICKER_LEAGUES.map((l) => `<option value="${l.path}">${esc(l.league)}</option>`).join('');
-  $('#open-settings').onclick = () => { renderFollows(); renderPicker(); $('#settings').showModal(); };
+  $('#open-settings').onclick = () => { renderFollows(); renderSports(); renderPicker(); $('#settings').showModal(); };
   $('#close-settings').onclick = () => { $('#settings').close(); render(); };
   $('#league').onchange = renderPicker;
   $('#follows').onclick = (e) => {
@@ -167,7 +193,14 @@ function setupSettings() {
     renderFollows();
     renderPicker();
   };
-  $('#reset-teams').onclick = () => { setFollows(DEFAULT_TEAMS); renderFollows(); renderPicker(); };
+  $('#reset-teams').onclick = () => { setFollows(DEFAULT_TEAMS); setLeagues(DEFAULT_LEAGUES); renderFollows(); renderSports(); renderPicker(); };
+  $('#sports').onchange = (e) => {
+    const box = e.target.closest('input[data-key]');
+    if (!box) return;
+    const keys = new Set(getLeagues());
+    if (box.checked) keys.add(box.dataset.key); else keys.delete(box.dataset.key);
+    setLeagues([...keys]);
+  };
 }
 
 // --- Morning alerts ----------------------------------------------------------
@@ -197,7 +230,7 @@ function setupAlerts() {
       const reg = await navigator.serviceWorker.ready;
       const sub = (await reg.pushManager.getSubscription())
         ?? (await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: keyBytes(VAPID_PUBLIC_KEY) }));
-      const code = btoa(unescape(encodeURIComponent(JSON.stringify({ subscription: sub.toJSON(), follows: getFollows() }))));
+      const code = btoa(unescape(encodeURIComponent(JSON.stringify({ subscription: sub.toJSON(), follows: getFollows(), leagues: getLeagues() }))));
       $('#code').value = code;
       $('#alerts-code').hidden = false;
       $('#alerts-on').textContent = 'Alerts are on for this phone';

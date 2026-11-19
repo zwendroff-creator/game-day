@@ -11,14 +11,15 @@ import { DEFAULT_TEAMS } from '../sources.js';
 
 const timeFmt = new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: '2-digit', timeZone: 'America/New_York' });
 
-export function summarize({ mine, big, other }) {
+export function summarize({ mine, big, league = [], other }) {
   const line = (i) => `${i.allDay ? '' : timeFmt.format(i.start) + ' '}${i.tag && i.section === 'big' ? i.tag + ': ' : ''}${i.title}`;
   const parts = [];
   if (mine.length) parts.push(...mine.map(line));
   if (big.length) parts.push(...big.slice(0, 3).map(line));
+  if (league.length) parts.push(...league.slice(0, 2).map(line));
   if (other.length) parts.push(...other.slice(0, 2).map(line));
   if (!parts.length) return null;
-  const extra = mine.length + big.length + other.length - parts.length;
+  const extra = mine.length + big.length + league.length + other.length - parts.length;
   return {
     title: mine.length ? `Game day: ${mine.length} for your teams` : 'On today',
     body: parts.join('\n') + (extra > 0 ? `\n+${extra} more` : ''),
@@ -30,7 +31,7 @@ async function main() {
   // "Today" in Miami, whatever time zone the runner is in.
   const miamiNow = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/New_York' }));
   process.env.TZ = 'America/New_York';
-  const result = await loadToday({ today: miamiNow, follows: setup.follows?.length ? setup.follows : DEFAULT_TEAMS, cyclingUrl: 'direct' });
+  const result = await loadToday({ today: miamiNow, follows: setup.follows?.length ? setup.follows : DEFAULT_TEAMS, leagues: setup.leagues, cyclingUrl: 'direct' });
   const msg = summarize(result);
   if (!msg) { console.log('Nothing on today, no notification sent.'); return; }
   webpush.setVapidDetails('https://github.com', process.env.VAPID_PUBLIC_KEY, process.env.VAPID_PRIVATE_KEY);

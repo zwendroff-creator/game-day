@@ -78,3 +78,8 @@ section h2 .count { font-weight: 500; opacity: .7; margin-left: 4px; }
 .pill.hot { background: var(--hot-bg); color: var(--hot); }
 .pill.hot.finish { background: none; border: 1px solid currentColor; }
 .card.is-hot { box-shadow: inset 3px 0 0 var(--hot), 0 1px 2px rgb(0 0 0 / .06); }
+.hint { color: var(--muted); font-size: 13px; margin: 10px 0 6px; }
+.toggles { display: flex; flex-wrap: wrap; gap: 6px; }
+.toggle { display: inline-flex; align-items: center; gap: 6px; background: var(--surface); border-radius: 999px; padding: 6px 12px; font-size: 14px; cursor: pointer; border: 1px solid var(--line); }
+.toggle input { margin: 0; accent-color: var(--accent); }
+.toggle:has(input:checked) { border-color: var(--accent); }

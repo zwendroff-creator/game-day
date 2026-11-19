@@ -7,6 +7,7 @@ const LEAGUE_WEIGHT = {
   'MLB': 14, 'UFC': 18, 'Supercopa': 15, 'Bundesliga': 10, 'Serie A': 10, 'Europa League': 10,
   'Copa del Rey': 10, 'NHL': 8, 'MLS': 8, 'Ligue 1': 7, 'ATP': 8, 'WTA': 8, 'Cycling': 8,
   'Cyclocross': 6, 'Scottish Prem': 5, 'Argentina': 5,
+  'College Football': 15, 'College Basketball': 8, 'PGA Tour': 12, 'LPGA': 6,
 };
 const F1_SESSION = (title) => (/: Race$/i.test(title) ? 30 : /Sprint|Qualifying/i.test(title) ? 15 : 4);
 

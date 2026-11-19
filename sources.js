@@ -10,6 +10,8 @@ export const LEAGUES = [
   { path: 'basketball/nba',          league: 'NBA',              sport: 'Basketball', group: 'nba' },
   { path: 'baseball/mlb',            league: 'MLB',              sport: 'Baseball',   group: 'mlb' },
   { path: 'hockey/nhl',              league: 'NHL',              sport: 'Hockey',     group: 'nhl' },
+  { path: 'football/college-football', league: 'College Football', sport: 'Football', group: 'ncaaf', noPicker: true },
+  { path: 'basketball/mens-college-basketball', league: 'College Basketball', sport: 'Basketball', group: 'ncaab', noPicker: true },
   { path: 'soccer/esp.1',            league: 'La Liga',          sport: 'Soccer',     group: 'soccer', pickable: true },
   { path: 'soccer/eng.1',            league: 'Premier League',   sport: 'Soccer',     group: 'soccer', pickable: true },
   { path: 'soccer/ger.1',            league: 'Bundesliga',       sport: 'Soccer',     group: 'soccer', pickable: true },
@@ -25,7 +27,7 @@ export const LEAGUES = [
 ];
 
 // Leagues offered in the "add a team" picker (US leagues + main soccer leagues).
-export const PICKER_LEAGUES = LEAGUES.filter((l) => l.group !== 'soccer' || l.pickable);
+export const PICKER_LEAGUES = LEAGUES.filter((l) => !l.noPicker && (l.group !== 'soccer' || l.pickable));
 
 // Victor's starting teams. Matching is by ESPN team id, or abbreviation as a backup.
 export const DEFAULT_TEAMS = [
@@ -41,7 +43,24 @@ export const SPORT_FEEDS = [
   { sport: 'Combat', league: 'UFC',       path: 'mma/ufc',    kind: 'card' },
   { sport: 'Tennis', league: 'ATP',       path: 'tennis/atp', kind: 'tournament' },
   { sport: 'Tennis', league: 'WTA',       path: 'tennis/wta', kind: 'tournament' },
+  { sport: 'Golf',   league: 'PGA Tour',  path: 'golf/pga',   kind: 'tournament' },
+  { sport: 'Golf',   league: 'LPGA',      path: 'golf/lpga',  kind: 'tournament' },
 ];
+
+// Whole sports and leagues Victor can follow in settings. Followed ones show
+// in Highlights; everything shows in All games either way.
+export const FOLLOWABLE_SPORTS = [
+  { key: 'Formula 1', label: 'F1' },
+  { key: 'ATP', label: 'Tennis: ATP' },
+  { key: 'WTA', label: 'Tennis: WTA' },
+  { key: 'UFC', label: 'UFC' },
+  { key: 'PGA Tour', label: 'Golf: PGA Tour' },
+  { key: 'LPGA', label: 'Golf: LPGA' },
+  { key: 'Cycling', label: 'Road cycling' },
+  { key: 'Cyclocross', label: 'Cyclocross' },
+];
+// What he follows to start with: the sports he told us about.
+export const DEFAULT_LEAGUES = ['Formula 1', 'ATP', 'WTA', 'UFC', 'Cycling', 'Cyclocross'];
 
 // Cycling isn't on ESPN, so it comes from TheSportsDB's free tier.
 // Browsers can't read TheSportsDB directly, so the publish job saves the
@@ -129,6 +148,10 @@ export const WATCH_FALLBACK = {
   'NBA':              ['NBA League Pass'],
   'MLB':              ['MLB.TV'],
   'NHL':              ['ESPN+'],
+  'College Football': ['ESPN+'],
+  'College Basketball': ['ESPN+'],
+  'PGA Tour':         ['Golf Channel', 'ESPN+', 'Peacock'],
+  'LPGA':             ['Golf Channel', 'Peacock'],
   'La Liga':          ['ESPN+'],
   'Premier League':   ['Peacock', 'USA Network'],
   'Bundesliga':       ['ESPN+'],

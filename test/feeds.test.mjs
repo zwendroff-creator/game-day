@@ -210,3 +210,20 @@ test('loadToday returns games ranked, his team first', async () => {
   const r = await loadToday({ today, follows: DEFAULT_TEAMS, fetchFn });
   assert.equal(r.ranked[0].title, 'Heat vs Hornets');
 });
+
+test('following a whole league puts its games in Highlights', async () => {
+  const fetchFn = async (url) => {
+    if (url.includes('hockey/nhl')) return { ok: true, json: async () => ({ events: [
+      game('h1', at(19), team('1', 'BOS', 'Boston Bruins', 'home'), team('2', 'CBJ', 'Columbus Blue Jackets', 'away')),
+    ] }) };
+    if (url.includes('racing/f1')) return { ok: true, json: async () => ({ events: [{ id: 'gp', name: 'GP', shortName: 'GP', competitions: [{ id: 'r', date: at(14), type: { text: 'Race' } }] }] }) };
+    return { ok: true, json: async () => ({ events: [] }) };
+  };
+  const off = await loadToday({ today, follows: [], fetchFn });
+  assert.equal(off.league.length, 0);
+  assert.equal(off.other.filter((i) => i.sport === 'F1').length, 1); // F1 followed by default
+  const on = await loadToday({ today, follows: [], leagues: ['NHL'], fetchFn });
+  assert.deepEqual(on.league.map((i) => i.title), ['Jackets at Bruins']);
+  assert.equal(on.other.filter((i) => i.sport === 'F1').length, 0); // F1 unfollowed: only in All games
+  assert.ok(on.all.some((i) => i.sport === 'F1'));
+});
