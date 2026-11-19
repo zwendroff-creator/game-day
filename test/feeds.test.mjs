@@ -138,3 +138,7 @@ test('team picker reads teams.json and sorts by name', async () => {
   assert.equal(teams[0].group, 'nfl');
   assert.equal(teams[0].league, 'NFL');
 });
+
+test('Heat-Knicks is flagged as a rivalry', () => {
+  assert.equal(findRivalry('New York Knicks', 'Miami Heat').name, 'Heat–Knicks');
+});
