@@ -163,3 +163,50 @@ test('cycling is not "quiet" on a cyclocross day', async () => {
   assert.ok(r.other.some((i) => i.league === 'Cyclocross'));
   assert.ok(!r.quiet.includes('Cycling'));
 });
+
+// --- Ranking ---------------------------------------------------------------
+import { closeness, importance, winShare } from '../ranking.js';
+const g = (o) => ({ sport: 'Basketball', league: 'NBA', section: 'rest', title: '', state: 'pre', ...o });
+
+test('close game rules', () => {
+  assert.equal(closeness(g({ state: 'in', period: 4, margin: 4 })), 'live');
+  assert.equal(closeness(g({ state: 'in', period: 2, margin: 2 })), ''); // too early
+  assert.equal(closeness(g({ state: 'in', period: 4, margin: 15 })), '');
+  assert.equal(closeness(g({ state: 'post', period: 5, margin: 9 })), 'finish'); // overtime
+  assert.equal(closeness(g({ sport: 'Baseball', league: 'MLB', state: 'in', period: 8, margin: 1 })), 'live');
+  assert.equal(closeness(g({ sport: 'Soccer', league: 'La Liga', state: 'post', period: 2, margin: 0 })), '');
+  assert.equal(closeness(g({ sport: 'Soccer', league: 'La Liga', state: 'in', period: 2, margin: 1 })), 'live');
+});
+
+test('importance order: his team > live close > rivalry > plain', () => {
+  const mine = importance(g({ section: 'mine' }));
+  const closeLive = importance(g({ state: 'in', period: 4, margin: 2 }));
+  const rivalry = importance(g({ rivalry: true }));
+  const plainGame = importance(g({}));
+  const finished = importance(g({ state: 'post', period: 4, margin: 20 }));
+  assert.ok(mine > closeLive && closeLive > rivalry && rivalry > plainGame && plainGame > finished);
+});
+
+test('NFL outranks NHL, and F1 race outranks practice', () => {
+  assert.ok(importance(g({ sport: 'Football', league: 'NFL' })) > importance(g({ sport: 'Hockey', league: 'NHL' })));
+  assert.ok(importance({ sport: 'F1', league: 'Formula 1', title: 'Las Vegas GP: Race', state: 'pre' }) >
+    importance({ sport: 'F1', league: 'Formula 1', title: 'Las Vegas GP: FP1', state: 'pre' }));
+});
+
+test('win share reads records', () => {
+  assert.equal(winShare('8-2', 'Football'), 0.8);
+  assert.equal(winShare('6-2-2', 'Soccer'), 0.7); // W-D-L
+  assert.equal(winShare('1-1', 'Basketball'), null); // too few games
+});
+
+test('loadToday returns games ranked, his team first', async () => {
+  const fetchFn = async (url) => {
+    if (url.includes('basketball/nba')) return { ok: true, json: async () => ({ events: [
+      game('a', at(19), team('1', 'ATL', 'Atlanta Hawks', 'home'), team('2', 'BOS', 'Boston Celtics', 'away')),
+      game('b', at(20), team('14', 'MIA', 'Miami Heat', 'home'), team('5', 'CHA', 'Charlotte Hornets', 'away')),
+    ] }) };
+    return { ok: true, json: async () => ({ events: [] }) };
+  };
+  const r = await loadToday({ today, follows: DEFAULT_TEAMS, fetchFn });
+  assert.equal(r.ranked[0].title, 'Heat vs Hornets');
+});

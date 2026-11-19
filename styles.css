@@ -1,10 +1,12 @@
 :root {
+  --hot: #ea580c; --hot-bg: #ffedd5;
   --bg: #f4f5f7; --surface: #ffffff; --text: #0f172a; --muted: #64748b; --line: #e2e8f0;
   --accent: #2563eb; --live: #dc2626; --tag-bg: #fef3c7; --tag-text: #92400e; --chip: #eef2ff; --chip-text: #3730a3;
 }
 @media (prefers-color-scheme: dark) {
   :root {
     --bg: #0b1120; --surface: #151c2e; --text: #e2e8f0; --muted: #94a3b8; --line: #1e293b;
+    --hot: #fb923c; --hot-bg: #431407;
     --accent: #60a5fa; --live: #f87171; --tag-bg: #422006; --tag-text: #fcd34d; --chip: #1e2546; --chip-text: #c7d2fe;
   }
 }
@@ -73,3 +75,6 @@ textarea { width: 100%; font: 12px ui-monospace, monospace; border-radius: 10px;
 section h2 .count { font-weight: 500; opacity: .7; margin-left: 4px; }
 .card.is-mine { box-shadow: inset 3px 0 0 var(--accent), 0 1px 2px rgb(0 0 0 / .06); }
 .pill.mine { background: var(--chip); color: var(--chip-text); }
+.pill.hot { background: var(--hot-bg); color: var(--hot); }
+.pill.hot.finish { background: none; border: 1px solid currentColor; }
+.card.is-hot { box-shadow: inset 3px 0 0 var(--hot), 0 1px 2px rgb(0 0 0 / .06); }

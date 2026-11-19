@@ -1,5 +1,5 @@
 import { loadToday, loadTeams } from './feeds.js';
-import { DEFAULT_TEAMS, PICKER_LEAGUES, LEAGUES } from './sources.js';
+import { DEFAULT_TEAMS, PICKER_LEAGUES } from './sources.js';
 import { VAPID_PUBLIC_KEY } from './push-config.js';
 
 const $ = (sel) => document.querySelector(sel);
@@ -32,13 +32,15 @@ function card(item) {
   const when = item.allDay ? 'All day' : timeFmt.format(item.start);
   const live = item.state === 'in';
   const done = item.state === 'post';
+  const hot = item.close === 'live' ? '<span class="pill hot">🔥 Close game</span>'
+    : item.close === 'finish' ? '<span class="pill hot finish">Close finish</span>' : '';
   const status = live ? `<span class="pill live">● ${esc(item.statusText || 'Live')}</span>`
     : done ? `<span class="pill done">${esc(item.statusText || 'Final')}</span>` : '';
   return `
-    <article class="card ${done ? 'is-done' : ''} ${item.section === 'mine' ? 'is-mine' : ''}">
+    <article class="card ${done ? 'is-done' : ''} ${item.section === 'mine' ? 'is-mine' : ''} ${item.close === 'live' ? 'is-hot' : ''}">
       <div class="when"><span class="time">${esc(when)}</span><span class="icon" aria-hidden="true">${ICON[item.sport] ?? '•'}</span></div>
       <div class="body">
-        <div class="meta">${item.section === 'mine' ? '<span class="pill mine">★ Your team</span> ' : ''}${esc(item.subtitle)}${item.tag ? ` <span class="pill tag">${esc(item.tag)}</span>` : ''} ${status}</div>
+        <div class="meta">${item.section === 'mine' ? '<span class="pill mine">★ Your team</span> ' : ''}${esc(item.subtitle)}${item.tag ? ` <span class="pill tag">${esc(item.tag)}</span>` : ''} ${hot} ${status}</div>
         <h3>${esc(item.title)}</h3>
         ${item.score ? `<div class="score">${esc(item.score)}</div>` : ''}
         <div class="watch">${(item.watch ?? []).map((w) => `<span class="chip">📺 ${esc(w)}</span>`).join('')}</div>
@@ -57,23 +59,11 @@ let view = 'all';
 try { if (localStorage.getItem(VIEW_KEY) === 'highlights') view = 'highlights'; } catch {}
 let lastData = null;
 
-// League order on the All games page: his teams' leagues first, then the rest.
-const LEAGUE_ORDER = [...LEAGUES.map((l) => l.league), 'Formula 1', 'ATP', 'WTA', 'UFC', 'Cyclocross'];
-const leagueRank = (league) => { const i = LEAGUE_ORDER.indexOf(league); return i < 0 ? LEAGUE_ORDER.length : i; };
-
-function allGamesView({ all }) {
-  if (!all.length) return '<p class="empty">No games found for today.</p>';
-  const groups = new Map();
-  for (const item of all) {
-    const key = item.sport === 'Cycling' && item.league !== 'Cyclocross' ? 'Cycling' : item.league;
-    if (!groups.has(key)) groups.set(key, []);
-    groups.get(key).push(item);
-  }
-  const followedLeague = (items) => items.some((i) => i.section === 'mine');
-  return [...groups.entries()]
-    .sort(([a, ai], [b, bi]) => (followedLeague(bi) - followedLeague(ai)) || (leagueRank(a) - leagueRank(b)))
-    .map(([league, items]) => `<section><h2>${esc(league)} <span class="count">${items.length}</span></h2>${items.map(card).join('')}</section>`)
-    .join('');
+// All games: ranked by importance (see ranking.js), most important first.
+function allGamesView({ ranked }) {
+  if (!ranked.length) return '<p class="empty">No games found for today.</p>';
+  if (ranked.length < 8) return section('Ranked by importance', ranked, '');
+  return section('Top games', ranked.slice(0, 5), '') + section('More today, most important first', ranked.slice(5), '');
 }
 
 function highlightsView({ mine, big, other }) {

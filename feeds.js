@@ -5,6 +5,7 @@ import {
   espnScoreboard,
 } from './sources.js';
 import { CYCLOCROSS } from './cyclocross.js';
+import { rank, winShare } from './ranking.js';
 
 // Each item looks like:
 // { id, section: 'mine'|'big'|'other', sport, league, title, subtitle, tag,
@@ -79,6 +80,14 @@ export function parseLeague(feed, json, today, follows) {
       title = `${away.team?.shortDisplayName ?? away.team?.displayName} at ${home.team?.shortDisplayName ?? home.team?.displayName}`;
     }
     const hasScore = teams.every((c) => c.score != null && c.score !== '') && (comp.status?.type?.state ?? 'pre') !== 'pre';
+    const record = (c) => {
+      const r = (c.records ?? []).find((x) => x.type === 'total' || x.name === 'overall' || x.name === 'All Splits') ?? c.records?.[0];
+      return winShare(r?.summary, feed.sport);
+    };
+    const shares = [record(home), record(away)];
+    const quality = shares.every((x) => x != null) ? (shares[0] + shares[1]) / 2 : null;
+    const topMatchup = shares.every((x) => x != null && x >= 0.6);
+    const national = (comp.broadcasts ?? []).some((b) => (b.market ?? '').toLowerCase() === 'national');
     items.push({
       id: `${feed.group}:${ev.id}`,
       section: ours ? 'mine' : rivalry || postseason ? 'big' : 'rest',
@@ -86,8 +95,11 @@ export function parseLeague(feed, json, today, follows) {
       league: feed.league,
       title,
       subtitle: feed.league,
-      tag: rivalry?.name ?? (postseason ? 'Playoffs' : ''),
+      tag: rivalry?.name ?? (postseason ? 'Playoffs' : topMatchup ? 'Top matchup' : ''),
       start,
+      rivalry: !!rivalry, postseason, national, quality, topMatchup,
+      period: comp.status?.period ?? ev.status?.period ?? 0,
+      margin: hasScore ? Math.abs(Number(home.score) - Number(away.score)) : null,
       allDay: false,
       ...statusOf(comp.status ?? ev.status),
       score: hasScore ? `${away.team?.abbreviation} ${away.score} – ${home.score} ${home.team?.abbreviation}` : '',
@@ -225,9 +237,10 @@ export async function loadToday({ today = new Date(), follows, fetchFn = fetch, 
   });
   all.push(...cyclocrossToday(today));
   const seen = new Set();
-  const items = sortItems(all.filter((i) => (seen.has(i.id) ? false : seen.add(i.id))));
+  const items = sortItems(all.filter((i) => (seen.has(i.id) ? false : seen.add(i.id))).map(rank));
   return {
     all: items,
+    ranked: [...items].sort((a, b) => (b.importance - a.importance) || ((a.start?.getTime() ?? 0) - (b.start?.getTime() ?? 0))),
     rest: items.filter((i) => i.section === 'rest'),
     mine: items.filter((i) => i.section === 'mine'),
     big: items.filter((i) => i.section === 'big'),

@@ -28,3 +28,6 @@ A home-screen web app that shows Victor what's on today: his teams first, then b
   - `VAPID_PUBLIC_KEY` and `VAPID_PRIVATE_KEY`: the app's push keys (the public one is also in `push-config.js`).
   - `PUSH_SETUP`: the code Victor sends from the app after tapping "Turn on morning alerts".
 - The "Morning rundown" workflow then runs every day at 7:30 AM Miami time (8:30 AM in summer). Use "Run workflow" to test it.
+
+## How All games is ranked
+`ranking.js` scores each game. It weighs Victor's teams first, then playoffs, rivalries, live close games, top matchups (both teams win 60%+), national TV, and how big the league is. Finished games drop to the bottom. A "🔥 Close game" label marks games that are late and within a few points (NBA 6, NFL 8, MLB 2 runs, NHL 1 goal, soccer 1 goal in the second half). "Close finish" marks games that ended by a hair or in overtime.
