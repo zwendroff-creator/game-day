@@ -295,6 +295,8 @@ test('cyclocross start times are read from a race page and shown on the card', a
   assert.equal(item.allDay, false);
   assert.equal(item.start.toISOString(), '2026-11-22T12:45:00.000Z');
   assert.match(item.subtitle, /Women 7:45\sAM, Men 9:00\sAM/);
-  const [plain] = cyclocrossToday(new Date(2026, 10, 22, 12));
+  const [listed] = cyclocrossToday(new Date(2026, 10, 22, 12));
+  assert.equal(listed.start.toISOString(), '2026-11-22T12:45:00.000Z'); // from the hand-kept list
+  const [plain] = cyclocrossToday(new Date(2026, 11, 13, 12)); // Glasgow: no schedule yet
   assert.equal(plain.allDay, true);
 });

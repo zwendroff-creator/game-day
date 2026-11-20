@@ -12,8 +12,8 @@ const CHAMPS = { watch: ['HBO Max', 'FloBikes'] };
 
 export const CYCLOCROSS = [
   // World Cup
-  { date: '2026-11-27', place: 'Ostrava', ...WC },
-  { date: '2026-11-29', place: 'Tábor', ...WC },
+  { date: '2026-11-27', place: 'Ostrava', times: { women: '18:15', men: '19:45' }, ...WC },
+  { date: '2026-11-29', place: 'Tábor', times: { women: '13:00', men: '14:30' }, ...WC },
   { date: '2026-12-13', place: 'Glasgow', ...WC },
   { date: '2026-12-19', place: 'Antwerp', ...WC },
   { date: '2026-12-20', place: 'Koksijde', ...WC },
@@ -29,14 +29,14 @@ export const CYCLOCROSS = [
   { date: '2026-11-05', place: 'Middelkerke', ...SP },
   { date: '2026-11-11', place: 'Niel', ...SP },
   { date: '2026-11-14', place: 'Merksplas', ...SP },
-  { date: '2026-12-06', place: 'Ruddervoorde', ...SP },
+  { date: '2026-12-06', place: 'Ruddervoorde', times: { women: '13:40', men: '15:10' }, ...SP },
   { date: '2026-12-25', place: 'Heusden-Zolder', ...SP },
   { date: '2026-12-30', place: 'Diegem', ...SP },
   { date: '2027-01-02', place: 'Gullegem', ...SP },
   // X2O Trofee
   { date: '2026-11-01', place: 'Koppenberg', ...X2O },
   { date: '2026-11-15', place: 'Hamme-Zogge', ...X2O },
-  { date: '2026-11-22', place: 'Beringen', ...X2O },
+  { date: '2026-11-22', place: 'Beringen', times: { women: '13:45', men: '15:00' }, ...X2O },
   { date: '2026-12-22', place: 'Hofstade', ...X2O },
   { date: '2026-12-23', place: 'Loenhout', ...X2O },
   { date: '2027-01-01', place: 'Baal', ...X2O },
@@ -51,6 +51,20 @@ export const CYCLOCROSS = [
 ];
 
 // --- Start times -------------------------------------------------------------
+// Elite start times in the list above (`times`) are local European time, copied
+// from each race's cyclocross24.com page (checked 2026-11-20). Add them as
+// schedules come out, usually a week or two before each race.
+export function cxListedTimes(race, timeZone = 'Europe/Brussels') {
+  if (!race.times) return null;
+  const out = {};
+  for (const key of ['women', 'men']) {
+    if (!race.times[key]) continue;
+    const local = `${race.date}T${race.times[key]}:00`;
+    out[key] = new Date(`${local}${offsetAt(new Date(`${local}Z`), timeZone)}`).toISOString();
+  }
+  return out;
+}
+
 // The publish job reads each race's schedule from cyclocross24.com (local
 // Belgian time on its pages) and saves the elite start times to cx-times.json,
 // keyed by `${date}|${place}`. Races without times stay "All day".

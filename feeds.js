@@ -4,7 +4,7 @@ import {
   LEAGUES, SPORT_FEEDS, CYCLING_DIRECT, RIVALRIES, WATCH_FALLBACK, MIAMI_LOCAL,
   espnScoreboard, DEFAULT_LEAGUES,
 } from './sources.js';
-import { CYCLOCROSS } from './cyclocross.js';
+import { CYCLOCROSS, cxListedTimes } from './cyclocross.js';
 import { rank, winShare } from './ranking.js';
 
 // Each item looks like:
@@ -203,7 +203,7 @@ export function parseCycling(json, today) {
 // --- Cyclocross (hand-kept calendar) -----------------------------------------
 export function cyclocrossToday(today, calendar = CYCLOCROSS, times = {}) {
   return calendar.filter((r) => r.date === isoDay(today)).map((r) => {
-    const t = times[`${r.date}|${r.place}`] ?? {};
+    const t = times[`${r.date}|${r.place}`] ?? cxListedTimes(r) ?? {};
     const women = t.women ? new Date(t.women) : null;
     const men = t.men ? new Date(t.men) : null;
     const start = [women, men].filter(Boolean).sort((a, b) => a - b)[0] ?? null;
