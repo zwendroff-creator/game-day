@@ -14,9 +14,14 @@ for (const r of soon) {
   for (const slug of cxSlugs(r.place)) {
     try {
       const res = await fetch(`https://cyclocross24.com/race/${slug}/`, { headers: { 'User-Agent': 'GameDay calendar (personal app)' } });
-      if (!res.ok) continue;
-      const times = parseCxSchedule(await res.text(), r.date);
+      if (!res.ok) { console.log(`  ${slug}: HTTP ${res.status}`); continue; }
+      const html = await res.text();
+      const times = parseCxSchedule(html, r.date);
       if (times) { races[`${r.date}|${r.place}`] = times; break; }
+      // Explain misses in the job log, to help fix the reader if the page changes.
+      const text = html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
+      const at = text.indexOf('Schedule');
+      console.log(`  ${slug}: ${html.length} bytes, no times for ${r.date}. ${at < 0 ? 'No "Schedule" on page: ' + text.slice(0, 200) : text.slice(at, at + 300)}`);
     } catch (err) {
       console.warn(`${r.place}: ${err.message}`);
     }
