@@ -28,6 +28,15 @@ function getLeagues() {
 function setLeagues(list) {
   try { localStorage.setItem(LEAGUES_KEY, JSON.stringify(list)); } catch {}
 }
+// One-time: follow the Champions League and Europa League on phones that
+// saved their choices before these became defaults (Zac asked, Nov 2026).
+try {
+  if (!localStorage.getItem('leagues.euro-added')) {
+    const saved = JSON.parse(localStorage.getItem(LEAGUES_KEY));
+    if (Array.isArray(saved)) setLeagues([...new Set([...saved, 'Champions League', 'Europa League'])]);
+    localStorage.setItem('leagues.euro-added', '1');
+  }
+} catch {}
 // Leagues and sports he never wants to see (his own teams' games still show).
 const HIDDEN_KEY = 'hidden.v1';
 function getHidden() {
@@ -48,6 +57,17 @@ const dayFmt = new Intl.DateTimeFormat(undefined, { weekday: 'long', month: 'lon
 
 const ICON = { Soccer: '⚽', Football: '🏈', Basketball: '🏀', Baseball: '⚾', Hockey: '🏒', F1: '🏎️', Tennis: '🎾', Combat: '🥊', Cycling: '🚴', Golf: '⛳' };
 
+// League logos, saved by the publish job (tools/logos.mjs). Sports without one
+// (cycling, cyclocross) keep their emoji.
+let logos = {};
+fetch('./logos.json').then((r) => (r.ok ? r.json() : {})).then((j) => { logos = j ?? {}; renderView(); }).catch(() => {});
+function leagueBadge(item) {
+  const logo = logos[item.league];
+  if (!logo) return `<span class="icon" aria-hidden="true">${ICON[item.sport] ?? '•'}</span>`;
+  return `<picture class="logo"><source media="(prefers-color-scheme: dark)" srcset="${esc(logo.dark)}">` +
+    `<img src="${esc(logo.light)}" alt="${esc(item.league)}" title="${esc(item.league)}" loading="lazy" width="28" height="28"></picture>`;
+}
+
 function esc(s) {
   return String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
@@ -62,7 +82,7 @@ function card(item) {
     : done ? `<span class="pill done">${esc(item.statusText || 'Final')}</span>` : '';
   return `
     <article class="card ${done ? 'is-done' : ''} ${item.section === 'mine' ? 'is-mine' : ''} ${item.close === 'live' ? 'is-hot' : ''}">
-      <div class="when"><span class="time">${esc(when)}</span><span class="icon" aria-hidden="true">${ICON[item.sport] ?? '•'}</span></div>
+      <div class="when"><span class="time">${esc(when)}</span>${leagueBadge(item)}</div>
       <div class="body">
         <div class="meta">${item.section === 'mine' ? '<span class="pill mine">★ Your team</span> ' : ''}${esc(item.subtitle)}${item.tag ? ` <span class="pill tag">${esc(item.tag)}</span>` : ''} ${hot} ${status}</div>
         <h3>${esc(item.title)}</h3>

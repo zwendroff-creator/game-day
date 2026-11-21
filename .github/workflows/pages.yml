@@ -20,6 +20,8 @@ jobs:
       - run: mkdir site && cp -r index.html app.js feeds.js sources.js cyclocross.js ranking.js push-config.js styles.css sw.js manifest.json icons site/
       - run: node tools/cycling.mjs site/cycling.json
       - run: node tools/teams.mjs site/teams.json
+      - run: node tools/logos.mjs site/logos.json
+        continue-on-error: true
       - run: node tools/upcoming.mjs site/upcoming.json
         env: { TZ: America/New_York }
       - run: node tools/cxtimes.mjs site/cx-times.json

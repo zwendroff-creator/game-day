@@ -43,3 +43,9 @@ The publish job saves the next 4 weeks of games as `upcoming.json` (`tools/upcom
 ## Cyclocross start times
 
 The publish job runs `tools/cxtimes.mjs` each morning. For races in the next 30 days it reads the schedule on the race's cyclocross24.com page (times there are Belgian local time) and saves the elite women's and men's start times to `cx-times.json`. The app shows the earliest elite start as the time, and both on the card. cyclocross24.com blocks GitHub's servers (HTTP 403), so in practice the times come from the `times` field kept by hand in cyclocross.js, copied from each race page as schedules are published. Races without times stay "All day". Odd town names are mapped in `SLUG_ALIASES` in cyclocross.js.
+
+## League logos
+
+The publish job runs `tools/logos.mjs`, which saves each league's logo (with a dark-mode version) from ESPN's scoreboard feeds to `logos.json`. Game cards show the logo; sports ESPN has no logo for (cycling, cyclocross) keep their emoji.
+
+The Champions League and Europa League are followed by default (Zac's request, Nov 2026), and phones that saved their choices earlier get them added once.

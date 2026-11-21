@@ -104,3 +104,4 @@ section h2 .count { font-weight: 500; opacity: .7; margin-left: 4px; }
 .toggle.hide input { accent-color: var(--live); }
 .toggle.hide:has(input:checked) { border-color: var(--live); }
 .toggle.hide:has(input:checked) span { text-decoration: line-through; color: var(--muted); }
+.logo img { width: 28px; height: 28px; object-fit: contain; display: block; }

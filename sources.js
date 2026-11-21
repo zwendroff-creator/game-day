@@ -82,7 +82,7 @@ export const FOLLOWABLE_SPORTS = [
   { key: 'Cyclocross', label: 'Cyclocross' },
 ];
 // What he follows to start with: the sports he told us about.
-export const DEFAULT_LEAGUES = ['Formula 1', 'ATP', 'WTA', 'UFC', 'Cycling', 'Cyclocross'];
+export const DEFAULT_LEAGUES = ['Formula 1', 'ATP', 'WTA', 'UFC', 'Cycling', 'Cyclocross', 'Champions League', 'Europa League'];
 
 // Cycling isn't on ESPN, so it comes from TheSportsDB's free tier.
 // Browsers can't read TheSportsDB directly, so the publish job saves the
