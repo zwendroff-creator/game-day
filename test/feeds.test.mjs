@@ -289,6 +289,9 @@ test('cyclocross start times are read from a race page and shown on the card', a
   assert.equal(t.women, '2026-11-22T12:45:00.000Z');
   assert.equal(t.men, '2026-11-22T14:00:00.000Z');
   assert.equal(parseCxSchedule(html, '2027-01-23'), null); // a different race in the same town
+  // A page with no times yet: a clock elsewhere on the page must not count.
+  const empty = `<p>Time in your timezone - 00:38</p><h2>Schedule</h2><p>Sunday 20 December 2026 00:38</p><a>Women Elite</a>&nbsp;<a>Men Elite</a>&nbsp;<p>Local Time</p><p>Time in Koksijde - 06:38</p>`;
+  assert.equal(parseCxSchedule(empty, '2026-12-20'), null);
   assert.deepEqual(cxSlugs('Hamme-Zogge').slice(0, 1), ['hamme']);
   assert.ok(cxSlugs('Tábor').includes('tabor'));
   const [item] = cyclocrossToday(new Date(2026, 10, 22, 12), CYCLOCROSS, { '2026-11-22|Beringen': t });

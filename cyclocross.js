@@ -90,10 +90,17 @@ export function parseCxSchedule(html, date, timeZone = 'Europe/Brussels') {
   const text = html.replace(/<script[\s\S]*?<\/script>|<style[\s\S]*?<\/style>/gi, ' ').replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ');
   const [y, m, d] = date.split('-').map(Number);
   if (!text.includes(`${d} ${MONTHS[m - 1]} ${y}`)) return null;
+  // Only look inside the schedule block, so clocks elsewhere on the page
+  // (like "Time in your timezone") aren't mistaken for start times.
+  const from = text.indexOf('Schedule');
+  if (from < 0) return null;
+  const end = text.indexOf('Local Time', from);
+  const schedule = text.slice(from, end < 0 ? from + 2000 : end);
   const out = {};
   for (const [key, label] of [['women', 'Women Elite'], ['men', 'Men Elite']]) {
-    const hit = text.match(new RegExp(`(\\d{1,2}):(\\d{2})\\s+(?:\\d{1,2}:\\d{2}\\s+)?${label}`));
-    if (!hit) continue;
+    const hit = schedule.match(new RegExp(`(\\d{1,2}):(\\d{2})\\s+(?:\\d{1,2}:\\d{2}\\s+)?${label}`));
+    // Elite races start between 8 AM and 10 PM local time; anything else is a misread.
+    if (!hit || Number(hit[1]) < 8 || Number(hit[1]) > 22) continue;
     const local = `${date}T${hit[1].padStart(2, '0')}:${hit[2]}:00`;
     out[key] = new Date(`${local}${offsetAt(new Date(`${local}Z`), timeZone)}`).toISOString();
   }

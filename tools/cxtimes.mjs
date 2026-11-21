@@ -18,6 +18,7 @@ for (const r of soon) {
       const html = await res.text();
       const times = parseCxSchedule(html, r.date);
       if (times) { races[`${r.date}|${r.place}`] = times; break; }
+      if (!times && /Women Elite|Men Elite/.test(html)) console.log(`  ${slug}: schedule found but no elite times yet`);
       // Explain misses in the job log, to help fix the reader if the page changes.
       const text = html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
       const at = text.indexOf('Schedule');
